@@ -55,7 +55,7 @@ export function Setup({ settings, onChange, onStart }: Props) {
       <div className="setup__intro">
         <p className="setup__kicker">// new match</p>
         <h2 className="setup__title">
-          Jack in.
+          Power up.
           <br />
           Play a fast game.
         </h2>

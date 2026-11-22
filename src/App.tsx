@@ -743,7 +743,7 @@ function endingScript(
         : outcome.kind === "timeout"
           ? ["> enemy clock: 00:00", "> bot.link = TIMED OUT"]
           : ["> bot disconnected", "> bot.link = CLOSED"];
-    return { lines: ["> jack-in: OK", ...how], banner: "VICTORY" };
+    return { lines: ["> link: OK", ...how], banner: "VICTORY" };
   }
   const how =
     outcome.kind === "checkmate"
