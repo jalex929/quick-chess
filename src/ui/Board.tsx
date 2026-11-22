@@ -24,6 +24,8 @@ interface Props {
   upsideDown?: Color | null;
   /** Checkmate: the losing king topples and that side's pieces flicker out. */
   mated?: Color | null;
+  /** Checkmate colors: acid green when you won, red when you lost. */
+  mateTone?: "win" | "lose";
 }
 
 const fileIndex = (sq: Square) => sq.charCodeAt(0) - 97;
@@ -56,6 +58,7 @@ export function Board({
   coordinates = true,
   upsideDown,
   mated = null,
+  mateTone = "lose",
 }: Props) {
   const [selected, setSelected] = useState<Square | null>(null);
   const [focus, setFocus] = useState<Square>(orientation === "w" ? "e2" : "e7");
@@ -215,7 +218,7 @@ export function Board({
     <div className="board-frame">
       <div
         ref={boardRef}
-        className={`board ${drag?.moved ? "board--dragging" : ""}`}
+        className={`board ${drag?.moved ? "board--dragging" : ""} ${mateTone === "win" ? "board--win" : ""}`}
         role="grid"
         aria-label={`Chess board, ${COLOR_NAMES[orientation]} at the bottom. Arrow keys move between squares; Enter picks up and puts down a piece.`}
         onPointerMove={onPointerMove}

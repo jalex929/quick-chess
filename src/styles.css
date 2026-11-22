@@ -1163,8 +1163,8 @@ fieldset {
   background:
     radial-gradient(
       circle,
-      rgba(255, 77, 94, 0.9) 0%,
-      rgba(255, 77, 94, 0.25) 60%,
+      rgba(var(--mate-rgb), 0.9) 0%,
+      rgba(var(--mate-rgb), 0.25) 60%,
       transparent 80%
     ),
     var(--sq-dark);
@@ -1210,8 +1210,8 @@ fieldset {
   content: "";
   position: absolute;
   inset: 12%;
-  background: repeating-conic-gradient(rgba(255, 77, 94, 0.85) 0 25%, transparent 0 50%) 0 0 / 25%
-    25%;
+  background: repeating-conic-gradient(rgba(var(--mate-rgb), 0.85) 0 25%, transparent 0 50%) 0 0 /
+    25% 25%;
   opacity: 0;
   animation: corrupt-in 400ms 1200ms steps(4, end) forwards;
   pointer-events: none;
@@ -1301,7 +1301,7 @@ fieldset {
 }
 
 .derez__block .piece {
-  filter: drop-shadow(0 0 4px rgba(255, 77, 94, 0.9));
+  filter: drop-shadow(0 0 4px rgba(var(--mate-rgb), 0.9));
 }
 
 @keyframes derez-show {
@@ -1332,8 +1332,8 @@ fieldset {
   right: 0;
   top: 0;
   height: 3%;
-  background: linear-gradient(to bottom, transparent, var(--danger), transparent);
-  box-shadow: 0 0 24px 6px rgba(255, 77, 94, 0.6);
+  background: linear-gradient(to bottom, transparent, var(--mate), transparent);
+  box-shadow: 0 0 24px 6px rgba(var(--mate-rgb), 0.6);
   pointer-events: none;
   z-index: 25;
   opacity: 0;
@@ -1426,5 +1426,112 @@ fieldset {
   }
   .square--mated::before {
     opacity: 0.55;
+  }
+}
+
+/* Checkmate tone: red when you lose, acid green when you win. */
+.board {
+  --mate: var(--danger);
+  --mate-rgb: 255, 77, 94;
+}
+
+.board--win {
+  --mate: var(--acid);
+  --mate-rgb: 200, 255, 60;
+}
+
+/* ---------- Result terminal ---------- */
+
+.card--win {
+  border-color: var(--acid);
+  box-shadow: 0 0 34px rgba(200, 255, 60, 0.28);
+}
+
+.card--lose {
+  border-color: var(--danger);
+  box-shadow: 0 0 34px rgba(255, 77, 94, 0.3);
+}
+
+.terminal {
+  margin: 0;
+  padding: 12px 14px;
+  min-height: 7.2em;
+  background: #07040f;
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+  white-space: pre-wrap;
+}
+
+.terminal__line--done {
+  color: #8f87b8;
+}
+
+.terminal__cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 1.05em;
+  vertical-align: -0.15em;
+  background: currentColor;
+  animation: blink 0.9s steps(2, start) infinite;
+}
+
+.terminal__banner {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  animation: banner-glitch 700ms steps(1, end);
+}
+
+.terminal--win .terminal__banner {
+  color: var(--acid);
+  text-shadow:
+    -2px 0 0 rgba(255, 46, 151, 0.8),
+    2px 0 0 rgba(46, 242, 255, 0.8),
+    0 0 18px rgba(200, 255, 60, 0.7);
+}
+
+.terminal--lose .terminal__banner {
+  color: var(--danger);
+  text-shadow:
+    -2px 0 0 rgba(46, 242, 255, 0.7),
+    2px 0 0 rgba(255, 46, 151, 0.8),
+    0 0 18px rgba(255, 77, 94, 0.7);
+}
+
+.terminal--draw .terminal__banner {
+  color: var(--cyan);
+  text-shadow:
+    -2px 0 0 rgba(255, 46, 151, 0.7),
+    0 0 18px rgba(46, 242, 255, 0.6);
+}
+
+@keyframes banner-glitch {
+  0% {
+    clip-path: inset(0 0 60% 0);
+    transform: translate(-6px, 0);
+  }
+  15% {
+    clip-path: inset(40% 0 20% 0);
+    transform: translate(6px, 0) skewX(-14deg);
+  }
+  30% {
+    clip-path: inset(0 0 0 0);
+    transform: scaleX(1.2);
+  }
+  45% {
+    clip-path: inset(55% 0 0 0);
+    transform: translate(-3px, 0);
+  }
+  60%,
+  100% {
+    clip-path: none;
+    transform: none;
   }
 }

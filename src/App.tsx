@@ -444,6 +444,14 @@ export function App() {
           : []
         : [game.turn()];
   const mat = material(game);
+  const winner = "winner" in outcome ? outcome.winner : null;
+  // Pass and play has no "you", so a win is always a win for somebody.
+  const endTone: "win" | "lose" | "draw" = !winner
+    ? "draw"
+    : mode === "bot" && winner !== human
+      ? "lose"
+      : "win";
+  const { lines: endLines, banner: endBanner } = endingScript(outcome, mode, endTone);
   const result = describeOutcome(outcome);
 
   const name = (c: Color) =>
@@ -498,6 +506,7 @@ export function App() {
               onMove={onBoardMove}
               upsideDown={faceToFace ? "b" : null}
               mated={mated}
+              mateTone={endTone === "win" ? "win" : "lose"}
             />
             {pendingPromotion && (
               <Promotion
@@ -524,7 +533,12 @@ export function App() {
             )}
             {over && showResult && (
               <div className="board-overlay board-overlay--result">
-                <div className="card" role="dialog" aria-labelledby="result-title">
+                <div
+                  className={`card card--${endTone}`}
+                  role="dialog"
+                  aria-labelledby="result-title"
+                >
+                  <Terminal lines={endLines} banner={endBanner} tone={endTone} />
                   <h2 id="result-title" className="card__title">
                     {mode === "bot" && "winner" in outcome
                       ? outcome.winner === human
@@ -691,6 +705,86 @@ function useFlipOrientation(
     return () => window.clearTimeout(t);
   }, [target, shown, mode]);
   return mode === "pass" && view === "flip" && !over ? shown : target;
+}
+
+/** What the result terminal types out for each kind of ending. */
+function endingScript(
+  outcome: Outcome,
+  mode: Settings["mode"],
+  tone: "win" | "lose" | "draw",
+): { lines: string[]; banner: string } {
+  const winner = "winner" in outcome ? outcome.winner : null;
+  if (mode === "pass" && winner) {
+    const w = COLOR_NAMES[winner].toUpperCase();
+    const l = COLOR_NAMES[other(winner)].toUpperCase();
+    const how =
+      outcome.kind === "checkmate"
+        ? [`> ${w} breached ${l}'s defenses`, `> ${l.toLowerCase()}.king.status = OFFLINE`]
+        : outcome.kind === "timeout"
+          ? [`> ${l} clock: 00:00`, `> ${l.toLowerCase()}.link = TIMED OUT`]
+          : [`> ${l} pulled the plug`, `> ${l.toLowerCase()}.link = CLOSED`];
+    return { lines: how, banner: `${w} WINS` };
+  }
+  if (tone === "draw") {
+    const why: Record<string, string> = {
+      stalemate: "> no legal moves, no check",
+      repetition: "> loop detected: same position x3",
+      "fifty-moves": "> 50 moves, no progress",
+      insufficient: "> not enough pieces left to mate",
+      agreed: "> both sides agreed",
+      "timeout-draw": "> time out, but no mating material",
+    };
+    return { lines: [why[outcome.kind] ?? "> no winner", "> both kings ONLINE"], banner: "DRAW" };
+  }
+  if (tone === "win") {
+    const how =
+      outcome.kind === "checkmate"
+        ? ["> breaching enemy king...", "> king.status = OFFLINE"]
+        : outcome.kind === "timeout"
+          ? ["> enemy clock: 00:00", "> bot.link = TIMED OUT"]
+          : ["> bot disconnected", "> bot.link = CLOSED"];
+    return { lines: ["> jack-in: OK", ...how], banner: "VICTORY" };
+  }
+  const how =
+    outcome.kind === "checkmate"
+      ? ["> intrusion detected", "> your.king.status = OFFLINE"]
+      : outcome.kind === "timeout"
+        ? ["> your clock: 00:00", "> link TIMED OUT"]
+        : ["> you pulled the plug", "> link CLOSED"];
+  return { lines: [...how, "> connection lost"], banner: "DEFEAT" };
+}
+
+/**
+ * Types its lines out one character at a time, then drops the banner in with a glitch.
+ * Decorative: the heading and text below say the same thing for screen readers.
+ */
+function Terminal({
+  lines,
+  banner,
+  tone,
+}: {
+  lines: string[];
+  banner: string;
+  tone: "win" | "lose" | "draw";
+}) {
+  const full = lines.join("\n");
+  const reduce =
+    typeof window !== "undefined" &&
+    !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const [typed, setTyped] = useState(reduce ? full.length : 0);
+  useEffect(() => {
+    if (typed >= full.length) return;
+    const t = window.setTimeout(() => setTyped((n) => n + 1), full[typed] === "\n" ? 160 : 22);
+    return () => window.clearTimeout(t);
+  }, [typed, full]);
+  const done = typed >= full.length;
+  return (
+    <pre className={`terminal terminal--${tone}`} aria-hidden="true">
+      {full.slice(0, typed)}
+      {!done && <span className="terminal__cursor" />}
+      {done && <span className="terminal__banner">{banner}</span>}
+    </pre>
+  );
 }
 
 function Shell({
