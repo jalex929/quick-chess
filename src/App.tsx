@@ -328,12 +328,17 @@ export function App() {
   useEffect(() => {
     if (!over) return;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (outcome.kind !== "checkmate" || reduce) {
+    const animated = outcome.kind === "checkmate" || !("winner" in outcome);
+    if (!animated || reduce) {
       setShowResult(true);
       return;
     }
     setShowResult(false);
-    const t = window.setTimeout(() => setShowResult(true), 2000);
+    // Long enough to watch the king fall (or the board freeze) before the card covers it.
+    const t = window.setTimeout(
+      () => setShowResult(true),
+      outcome.kind === "checkmate" ? 2000 : 1700,
+    );
     return () => window.clearTimeout(t);
   }, [over]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -507,6 +512,7 @@ export function App() {
               upsideDown={faceToFace ? "b" : null}
               mated={mated}
               mateTone={endTone === "win" ? "win" : "lose"}
+              drawn={over && endTone === "draw"}
             />
             {pendingPromotion && (
               <Promotion
@@ -544,7 +550,9 @@ export function App() {
                       ? outcome.winner === human
                         ? "You win!"
                         : "The bot wins"
-                      : result.title}
+                      : endTone === "draw"
+                        ? (DRAW_NAMES[outcome.kind] ?? "Draw")
+                        : result.title}
                   </h2>
                   <p className="card__text">{result.detail}</p>
                   <div className="card__actions">
@@ -706,6 +714,16 @@ function useFlipOrientation(
   }, [target, shown, mode]);
   return mode === "pass" && view === "flip" && !over ? shown : target;
 }
+
+/** The heading on the result card for each kind of draw (the banner already says DRAW). */
+const DRAW_NAMES: Record<string, string> = {
+  stalemate: "Stalemate",
+  repetition: "Threefold repetition",
+  "fifty-moves": "Fifty-move rule",
+  insufficient: "Dead position",
+  agreed: "Draw agreed",
+  "timeout-draw": "Draw on time",
+};
 
 /** What the result terminal types out for each kind of ending. */
 function endingScript(

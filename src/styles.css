@@ -11,6 +11,7 @@
   --cyan: #2ef2ff;
   --pink: #ff2e97;
   --acid: #c8ff3c;
+  --amber: #ffb627;
   --danger: #ff4d5e;
 
   --sq-light: #2f2257;
@@ -1506,10 +1507,11 @@ fieldset {
 }
 
 .terminal--draw .terminal__banner {
-  color: var(--cyan);
+  color: var(--amber);
   text-shadow:
-    -2px 0 0 rgba(255, 46, 151, 0.7),
-    0 0 18px rgba(46, 242, 255, 0.6);
+    -2px 0 0 rgba(46, 242, 255, 0.6),
+    2px 0 0 rgba(255, 46, 151, 0.6),
+    0 0 18px rgba(255, 182, 39, 0.7);
 }
 
 @keyframes banner-glitch {
@@ -1533,5 +1535,132 @@ fieldset {
   100% {
     clip-path: none;
     transform: none;
+  }
+}
+
+/* ---------- Draw: the board freezes ---------- */
+
+.board--draw {
+  --mate: var(--amber);
+  --mate-rgb: 255, 182, 39;
+}
+
+.card--draw {
+  border-color: var(--amber);
+  box-shadow: 0 0 34px rgba(255, 182, 39, 0.28);
+}
+
+/* Both kings stutter, then lock: an amber frame snaps around them like a paused video. */
+.piece-wrap--frozen {
+  animation: freeze-stutter 640ms steps(1, end) forwards;
+}
+
+.piece-wrap--frozen .piece {
+  filter: drop-shadow(-2px 0 0 rgba(46, 242, 255, 0.7)) drop-shadow(2px 0 0 rgba(255, 46, 151, 0.7))
+    drop-shadow(0 0 7px rgba(255, 182, 39, 0.95));
+}
+
+@keyframes freeze-stutter {
+  0% {
+    transform: translate(-5%, 0);
+    clip-path: inset(0 0 45% 0);
+  }
+  14% {
+    transform: translate(5%, 0);
+    clip-path: inset(40% 0 0 0);
+  }
+  28% {
+    transform: none;
+    clip-path: none;
+  }
+  42% {
+    transform: translate(-3%, 0) skewX(8deg);
+  }
+  56% {
+    transform: none;
+  }
+  70% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: none;
+    clip-path: none;
+  }
+}
+
+.square--frozen::before {
+  content: "";
+  position: absolute;
+  inset: 5%;
+  border: 2px solid var(--amber);
+  box-shadow:
+    0 0 12px rgba(255, 182, 39, 0.7),
+    inset 0 0 12px rgba(255, 182, 39, 0.35);
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 182, 39, 0.16) 0 2px,
+    transparent 2px 5px
+  );
+  opacity: 0;
+  animation: lock-in 420ms 600ms steps(3, end) forwards;
+  pointer-events: none;
+}
+
+/* A small pause sign in the corner of each locked king's square. */
+.square--frozen::after {
+  content: "";
+  position: absolute;
+  top: 9%;
+  right: 9%;
+  width: 18%;
+  height: 18%;
+  background:
+    linear-gradient(var(--amber), var(--amber)) left / 35% 100% no-repeat,
+    linear-gradient(var(--amber), var(--amber)) right / 35% 100% no-repeat;
+  opacity: 0;
+  animation: lock-in 300ms 900ms steps(2, end) forwards;
+  pointer-events: none;
+  z-index: 3;
+}
+
+@keyframes lock-in {
+  0% {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Everything else stalls: a stepped flicker, then holds, dimmed and warm. */
+.piece-wrap--stalled {
+  animation: stall 900ms 250ms steps(6, end) forwards;
+}
+
+@keyframes stall {
+  0% {
+    opacity: 1;
+  }
+  30% {
+    opacity: 0.45;
+  }
+  45% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0.55;
+    filter: grayscale(0.5) sepia(0.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .square--frozen::before,
+  .square--frozen::after {
+    opacity: 1;
+  }
+  .piece-wrap--stalled {
+    opacity: 0.55;
   }
 }

@@ -26,6 +26,8 @@ interface Props {
   mated?: Color | null;
   /** Checkmate colors: acid green when you won, red when you lost. */
   mateTone?: "win" | "lose";
+  /** A drawn game: the board freezes in amber, both kings locked in place. */
+  drawn?: boolean;
 }
 
 const fileIndex = (sq: Square) => sq.charCodeAt(0) - 97;
@@ -59,6 +61,7 @@ export function Board({
   upsideDown,
   mated = null,
   mateTone = "lose",
+  drawn = false,
 }: Props) {
   const [selected, setSelected] = useState<Square | null>(null);
   const [focus, setFocus] = useState<Square>(orientation === "w" ? "e2" : "e7");
@@ -218,7 +221,7 @@ export function Board({
     <div className="board-frame">
       <div
         ref={boardRef}
-        className={`board ${drag?.moved ? "board--dragging" : ""} ${mateTone === "win" ? "board--win" : ""}`}
+        className={`board ${drag?.moved ? "board--dragging" : ""} ${mateTone === "win" ? "board--win" : ""} ${drawn ? "board--draw" : ""}`}
         role="grid"
         aria-label={`Chess board, ${COLOR_NAMES[orientation]} at the bottom. Arrow keys move between squares; Enter picks up and puts down a piece.`}
         onPointerMove={onPointerMove}
@@ -240,6 +243,7 @@ export function Board({
                 last && (sq === last.from || sq === last.to) && "square--last",
                 sq === checked && !mated && "square--check",
                 mated && piece?.type === "k" && piece.color === mated && "square--mated",
+                drawn && piece?.type === "k" && "square--frozen",
                 targets.has(sq) && (piece ? "square--capture" : "square--target"),
                 slide && "square--moving",
               ]
@@ -300,6 +304,8 @@ export function Board({
                         "piece-wrap",
                         slide && "piece-wrap--slide",
                         mated === piece.color && "piece-wrap--fading",
+                        drawn &&
+                          (piece.type === "k" ? "piece-wrap--frozen" : "piece-wrap--stalled"),
                         sq === checked && !mated && "piece-wrap--check",
                       ]
                         .filter(Boolean)
@@ -318,7 +324,7 @@ export function Board({
             })}
           </div>
         ))}
-        {mated && <div className="board__sweep" aria-hidden="true" />}
+        {(mated || drawn) && <div className="board__sweep" aria-hidden="true" />}
         {dragOffset && drag && game.pieceAt(drag.from) && (
           <div
             className="drag-ghost"
