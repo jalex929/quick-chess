@@ -147,6 +147,11 @@ export class Game {
     );
   }
 
+  /** Whether the last move took a piece (en passant included). */
+  lastWasCapture(): boolean {
+    return !!this.chess.history({ verbose: true }).at(-1)?.captured;
+  }
+
   lastMove(): MoveInput | null {
     const uci = this.moves[this.moves.length - 1];
     return uci ? fromUci(uci) : null;

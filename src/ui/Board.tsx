@@ -6,6 +6,7 @@ import {
   isLightSquare,
   type Color,
   type Game,
+  type Piece,
   type Square,
 } from "../engine/game";
 import { PieceIcon } from "./Pieces";
@@ -21,6 +22,8 @@ interface Props {
   coordinates?: boolean;
   /** Pieces of this color are drawn upside down (face-to-face play). */
   upsideDown?: Color | null;
+  /** Checkmate: the losing king topples and that side's pieces flicker out. */
+  mated?: Color | null;
 }
 
 const fileIndex = (sq: Square) => sq.charCodeAt(0) - 97;
@@ -52,6 +55,7 @@ export function Board({
   onMove,
   coordinates = true,
   upsideDown,
+  mated = null,
 }: Props) {
   const [selected, setSelected] = useState<Square | null>(null);
   const [focus, setFocus] = useState<Square>(orientation === "w" ? "e2" : "e7");
@@ -60,6 +64,10 @@ export function Board({
   const squareRefs = useRef(new Map<Square, HTMLButtonElement>());
   /** When the last touch or mouse press happened: the click that follows it is not a key press. */
   const lastPointer = useRef(-Infinity);
+  /** The position before this one, to work out what just moved (for animation). */
+  const prevGame = useRef<Game | null>(null);
+  /** A move made by dragging lands where it was dropped, so it doesn't slide. */
+  const droppedOn = useRef<Square | null>(null);
 
   const order = useMemo(() => screenOrder(orientation), [orientation]);
   const targets = useMemo(
@@ -69,10 +77,14 @@ export function Board({
   const last = game.lastMove();
   const checked = game.checkedKing();
 
+  const animation = useMemo(() => describeMove(prevGame.current, game, droppedOn.current), [game]);
+
   // A new position (a move was made, undone or the board reset): drop any selection.
   useEffect(() => {
     setSelected(null);
     setDrag(null);
+    prevGame.current = game;
+    droppedOn.current = null;
   }, [game]);
 
   const canPick = (sq: Square) => {
@@ -145,7 +157,10 @@ export function Board({
     if (!drag || event.pointerId !== drag.pointerId) return;
     const to = squareFromPoint(event.clientX, event.clientY);
     if (drag.moved) {
-      if (to && to !== drag.from) tryMove(drag.from, to);
+      if (to && to !== drag.from) {
+        droppedOn.current = to;
+        if (!tryMove(drag.from, to)) droppedOn.current = null;
+      }
     } else if (drag.wasSelected) {
       setSelected(null); // a second tap on the same piece puts it down
     }
@@ -213,13 +228,17 @@ export function Board({
             {order.slice(row * 8, row * 8 + 8).map((sq, col) => {
               const piece = game.pieceAt(sq);
               const hidden = drag?.moved && drag.from === sq;
+              const slide = animation?.slides.find((m) => m.to === sq);
+              const ghost = animation?.captured?.square === sq ? animation.captured : null;
               const classes = [
                 "square",
                 isLightSquare(sq) ? "square--light" : "square--dark",
                 sq === selected && "square--selected",
                 last && (sq === last.from || sq === last.to) && "square--last",
-                sq === checked && "square--check",
+                sq === checked && !mated && "square--check",
+                mated && piece?.type === "k" && piece.color === mated && "square--mated",
                 targets.has(sq) && (piece ? "square--capture" : "square--target"),
+                slide && "square--moving",
               ]
                 .filter(Boolean)
                 .join(" ");
@@ -255,12 +274,39 @@ export function Board({
                       {sq[0]}
                     </span>
                   )}
+                  {ghost && (
+                    <span key={`x${animation!.key}`} className="captured-ghost" aria-hidden="true">
+                      <PieceIcon
+                        type={ghost.piece.type}
+                        color={ghost.piece.color}
+                        className="piece"
+                      />
+                      <PieceIcon
+                        type={ghost.piece.type}
+                        color={ghost.piece.color}
+                        className="piece captured-ghost__echo"
+                      />
+                    </span>
+                  )}
                   {piece && !hidden && (
-                    <PieceIcon
-                      type={piece.type}
-                      color={piece.color}
-                      className={`piece ${upsideDown === piece.color ? "piece--flipped" : ""}`}
-                    />
+                    <span
+                      key={slide ? `s${animation!.key}` : "still"}
+                      className={[
+                        "piece-wrap",
+                        slide && "piece-wrap--slide",
+                        mated === piece.color &&
+                          (piece.type === "k" ? "piece-wrap--fallen" : "piece-wrap--fading"),
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      style={slide ? slideOffset(slide.from, slide.to, orientation) : undefined}
+                    >
+                      <PieceIcon
+                        type={piece.type}
+                        color={piece.color}
+                        className={`piece ${upsideDown === piece.color ? "piece--flipped" : ""}`}
+                      />
+                    </span>
                   )}
                 </button>
               );
@@ -286,4 +332,54 @@ export function Board({
       </div>
     </div>
   );
+}
+
+interface MoveAnimation {
+  /** Changes with every move, so each one animates exactly once. */
+  key: number;
+  /** Pieces sliding (the rook too, when castling). */
+  slides: { from: Square; to: Square }[];
+  /** The piece that was taken and where it stood (en passant: not the landing square). */
+  captured: { square: Square; piece: Piece } | null;
+}
+
+/** What changed between two positions one move apart, or null (new game, undo, reload). */
+function describeMove(prev: Game | null, game: Game, dropped: Square | null): MoveAnimation | null {
+  if (!prev || game.moves.length !== prev.moves.length + 1) return null;
+  const m = game.lastMove();
+  if (!m) return null;
+  const mover = prev.pieceAt(m.from);
+  if (!mover) return null;
+  const slides = dropped === m.to ? [] : [{ from: m.from, to: m.to }];
+  if (mover.type === "k" && Math.abs(fileIndex(m.to) - fileIndex(m.from)) === 2) {
+    const rank = m.from[1];
+    const kingside = fileIndex(m.to) > fileIndex(m.from);
+    slides.push({
+      from: `${kingside ? "h" : "a"}${rank}` as Square,
+      to: `${kingside ? "f" : "d"}${rank}` as Square,
+    });
+  }
+  let captured: MoveAnimation["captured"] = null;
+  const taken = prev.pieceAt(m.to);
+  if (taken) captured = { square: m.to, piece: taken };
+  else if (mover.type === "p" && m.from[0] !== m.to[0]) {
+    const square = `${m.to[0]}${m.from[1]}` as Square;
+    const pawn = prev.pieceAt(square);
+    if (pawn) captured = { square, piece: pawn };
+  }
+  return { key: game.moves.length, slides, captured };
+}
+
+/** Where a sliding piece starts, relative to its new square, in square widths. */
+function slideOffset(from: Square, to: Square, orientation: Color): React.CSSProperties {
+  const dir = orientation === "w" ? 1 : -1;
+  const dx = (fileIndex(from) - fileIndex(to)) * dir;
+  const dy = (rankIndex(to) - rankIndex(from)) * dir;
+  const distance = Math.hypot(dx, dy);
+  return {
+    "--dx": `${dx * 100}%`,
+    "--dy": `${dy * 100}%`,
+    // Longer moves take a little longer, but never drag.
+    "--slide-ms": `${Math.round(Math.min(320, 150 + distance * 25))}ms`,
+  } as React.CSSProperties;
 }

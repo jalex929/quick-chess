@@ -36,6 +36,16 @@ import {
 import { Board } from "./ui/Board";
 import { PieceIcon } from "./ui/Pieces";
 import { Setup } from "./ui/Setup";
+import { play as playSound, unlockAudio } from "./ui/sound";
+
+const SOUND_KEY = "quick-chess:sound";
+function loadSound(): boolean {
+  try {
+    return localStorage.getItem(SOUND_KEY) === "on";
+  } catch {
+    return false;
+  }
+}
 
 const BOT_MIN_DELAY = 450;
 
@@ -102,6 +112,42 @@ export function App() {
   // ---- Saving ----
   useEffect(() => saveSettings(settings), [settings]);
   useEffect(() => saveSession(session), [session]);
+
+  // ---- Sound (off unless turned on) ----
+  const [sound, setSound] = useState(loadSound);
+  const soundRef = useRef(sound);
+  soundRef.current = sound;
+  const toggleSound = () => {
+    const next = !sound;
+    if (next) unlockAudio();
+    setSound(next);
+    try {
+      localStorage.setItem(SOUND_KEY, next ? "on" : "off");
+    } catch {
+      // no storage: the choice lasts for this visit
+    }
+    if (next) playSound("move");
+  };
+
+  // A sound for each new move, picked from what it did.
+  const heard = useRef(session?.moves.length ?? 0);
+  useEffect(() => {
+    const count = session?.moves.length ?? 0;
+    const added = count === heard.current + 1;
+    heard.current = count;
+    if (!added || !soundRef.current || game.outcome().kind !== "playing") return;
+    playSound(game.inCheck() ? "check" : game.lastWasCapture() ? "capture" : "move");
+  }, [session?.moves, game]);
+
+  // The end of a game, however it ended.
+  const endedRef = useRef(true);
+  useEffect(() => {
+    const was = endedRef.current;
+    endedRef.current = over;
+    if (!over || was || !soundRef.current) return;
+    const winner = "winner" in outcome ? outcome.winner : null;
+    playSound(!winner ? "end-draw" : mode === "bot" && winner !== human ? "end-lose" : "end-win");
+  }, [over, outcome, mode, human]);
 
   // ---- Announcements for screen readers ----
   const announceMove = useCallback((g: Game, who: string) => {
@@ -225,6 +271,19 @@ export function App() {
     return () => window.clearTimeout(frame);
   }, [clockRunning]);
 
+  const lastTick = useRef(-1);
+  useEffect(() => {
+    const c = session?.clock;
+    if (!c?.running || over || !soundRef.current) return;
+    if (mode === "bot" && c.running !== human) return;
+    const left = timeLeft(c, c.running, now);
+    const second = Math.ceil(left / 1000);
+    if (left < 10_000 && second !== lastTick.current) {
+      lastTick.current = second;
+      playSound("tick");
+    }
+  }, [now, session?.clock, over, mode, human]);
+
   useEffect(() => {
     if (!session?.clock || over) return;
     const loser = flagged(session.clock, now);
@@ -264,10 +323,19 @@ export function App() {
     setSession({ ...session, clock: start(session.clock, game.turn(), t) });
   };
 
-  // When the game ends, the result card comes back up.
+  // When the game ends, the result card comes up; after checkmate it waits for the king to fall.
+  const mated = outcome.kind === "checkmate" ? other(outcome.winner) : null;
   useEffect(() => {
-    if (over) setShowResult(true);
-  }, [over]);
+    if (!over) return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (outcome.kind !== "checkmate" || reduce) {
+      setShowResult(true);
+      return;
+    }
+    setShowResult(false);
+    const t = window.setTimeout(() => setShowResult(true), 1700);
+    return () => window.clearTimeout(t);
+  }, [over]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Game actions ----
   const startGame = (s: Settings) => {
@@ -358,7 +426,7 @@ export function App() {
   // ---- Screens ----
   if (!session) {
     return (
-      <Shell>
+      <Shell sound={sound} onSound={toggleSound}>
         <Setup settings={settings} onChange={setSettings} onStart={startGame} />
         <Live text={announcement} />
       </Shell>
@@ -401,6 +469,8 @@ export function App() {
 
   return (
     <Shell
+      sound={sound}
+      onSound={toggleSound}
       actions={
         <button type="button" className="button" onClick={() => setSession(null)}>
           New game
@@ -427,6 +497,7 @@ export function App() {
               movable={movable}
               onMove={onBoardMove}
               upsideDown={faceToFace ? "b" : null}
+              mated={mated}
             />
             {pendingPromotion && (
               <Promotion
@@ -472,7 +543,7 @@ export function App() {
                       Play again
                     </button>
                     <button type="button" className="button" onClick={() => setSession(null)}>
-                      Change settings
+                      Main menu
                     </button>
                   </div>
                   <div className="card__actions card__actions--quiet">
@@ -585,6 +656,11 @@ export function App() {
                   Result
                 </button>
               )}
+              {over && (
+                <button type="button" className="button" onClick={() => setSession(null)}>
+                  Main menu
+                </button>
+              )}
             </div>
           )}
           <MoveList san={game.san()} />
@@ -617,7 +693,17 @@ function useFlipOrientation(
   return mode === "pass" && view === "flip" && !over ? shown : target;
 }
 
-function Shell({ children, actions }: { children: React.ReactNode; actions?: React.ReactNode }) {
+function Shell({
+  children,
+  actions,
+  sound,
+  onSound,
+}: {
+  children: React.ReactNode;
+  actions?: React.ReactNode;
+  sound: boolean;
+  onSound: () => void;
+}) {
   return (
     <div className="app">
       <header className="topbar">
@@ -626,10 +712,48 @@ function Shell({ children, actions }: { children: React.ReactNode; actions?: Rea
           <span className="topbar__home-text">jayfox.design</span>
         </a>
         <h1 className="topbar__title">Quick Chess</h1>
-        <div className="topbar__actions">{actions}</div>
+        <div className="topbar__actions">
+          <button
+            type="button"
+            className="button button--icon"
+            aria-pressed={sound}
+            onClick={onSound}
+            title={sound ? "Sound on" : "Sound off"}
+          >
+            <SoundIcon on={sound} />
+            <span className="visually-hidden">Sound effects</span>
+          </button>
+          {actions}
+        </div>
       </header>
       {children}
     </div>
+  );
+}
+
+function SoundIcon({ on }: { on: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" />
+      {on ? (
+        <>
+          <path d="M16.5 8.5a5 5 0 0 1 0 7" />
+          <path d="M19 6a8.5 8.5 0 0 1 0 12" />
+        </>
+      ) : (
+        <path d="M17 9l5 6M22 9l-5 6" />
+      )}
+    </svg>
   );
 }
 

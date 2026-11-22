@@ -106,6 +106,9 @@ test("checkmate ends the game with a result card and PGN", async ({ page }) => {
   await expect(card).toContainText("Checkmate.");
   await card.getByRole("button", { name: "See the board" }).click();
   await expect(sq(page, "e1")).toHaveAttribute("aria-label", /in check/);
+  // Back to the main menu from the finished game.
+  await page.getByRole("button", { name: "Main menu" }).click();
+  await expect(page.getByRole("button", { name: /Start game/ })).toBeVisible();
 });
 
 test("promotion asks which piece", async ({ page }) => {
@@ -158,4 +161,24 @@ test("nothing scrolls sideways and Start is on screen", async ({ page }) => {
   await expect(sq(page, "h1")).toBeInViewport();
   await expect(sq(page, "a8")).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
+});
+
+test("moves slide, captures glitch out, and the sound toggle is remembered", async ({ page }) => {
+  await page.getByRole("radio", { name: /Pass & play/ }).check();
+  await page.getByRole("button", { name: /Start game/ }).click();
+  await move(page, "e2", "e4");
+  await expect(sq(page, "e4").locator(".piece-wrap--slide")).toHaveCount(1);
+  await move(page, "d7", "d5");
+  await move(page, "e4", "d5");
+  await expect(sq(page, "d5").locator(".captured-ghost")).toHaveCount(1);
+
+  const sound = page.getByRole("button", { name: "Sound effects" });
+  await expect(sound).toHaveAttribute("aria-pressed", "false");
+  await sound.click();
+  await expect(sound).toHaveAttribute("aria-pressed", "true");
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Sound effects" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 });
