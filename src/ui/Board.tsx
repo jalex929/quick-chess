@@ -288,14 +288,16 @@ export function Board({
                       />
                     </span>
                   )}
-                  {piece && !hidden && (
+                  {piece && !hidden && mated === piece.color && piece.type === "k" ? (
+                    <Derez color={piece.color} />
+                  ) : piece && !hidden ? (
                     <span
                       key={slide ? `s${animation!.key}` : "still"}
                       className={[
                         "piece-wrap",
                         slide && "piece-wrap--slide",
-                        mated === piece.color &&
-                          (piece.type === "k" ? "piece-wrap--fallen" : "piece-wrap--fading"),
+                        mated === piece.color && "piece-wrap--fading",
+                        sq === checked && !mated && "piece-wrap--check",
                       ]
                         .filter(Boolean)
                         .join(" ")}
@@ -307,12 +309,13 @@ export function Board({
                         className={`piece ${upsideDown === piece.color ? "piece--flipped" : ""}`}
                       />
                     </span>
-                  )}
+                  ) : null}
                 </button>
               );
             })}
           </div>
         ))}
+        {mated && <div className="board__sweep" aria-hidden="true" />}
         {dragOffset && drag && game.pieceAt(drag.from) && (
           <div
             className="drag-ghost"
@@ -382,4 +385,44 @@ function slideOffset(from: Square, to: Square, orientation: Color): React.CSSPro
     // Longer moves take a little longer, but never drag.
     "--slide-ms": `${Math.round(Math.min(320, 150 + distance * 25))}ms`,
   } as React.CSSProperties;
+}
+
+const DEREZ_GRID = 7;
+
+/**
+ * The mated king "derezzes": a hard glitch, then it breaks into a grid of pixel blocks that
+ * drift and drop away one by one, leaving a corrupted square. Pure CSS; the order the blocks
+ * go in is scrambled but fixed, so it looks random without changing between renders.
+ */
+function Derez({ color }: { color: Color }) {
+  const cells = [];
+  const n = DEREZ_GRID;
+  const size = 100 / n;
+  for (let i = 0; i < n * n; i++) {
+    const row = Math.floor(i / n);
+    const col = i % n;
+    const order = (i * 23 + 11) % (n * n); // a fixed shuffle of 0..48
+    const style = {
+      "--top": `${row * size}%`,
+      "--right": `${100 - (col + 1) * size}%`,
+      "--bottom": `${100 - (row + 1) * size}%`,
+      "--left": `${col * size}%`,
+      "--delay": `${Math.round((order / (n * n)) * 650)}ms`,
+      "--drift": `${((order % 5) - 2) * 6}%`,
+      "--fall": `${40 + (order % 4) * 25}%`,
+    } as React.CSSProperties;
+    cells.push(
+      <span key={i} className="derez__block" style={style}>
+        <PieceIcon type="k" color={color} className="piece" />
+      </span>,
+    );
+  }
+  return (
+    <span className="derez" aria-hidden="true">
+      <span className="derez__glitch">
+        <PieceIcon type="k" color={color} className="piece" />
+      </span>
+      {cells}
+    </span>
+  );
 }

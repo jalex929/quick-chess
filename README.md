@@ -16,6 +16,10 @@ clock. No accounts; an unfinished game survives a reload.
 - Tap-tap or drag to move, legal-move markers, last move and check highlighted with shape as
   well as color. Keyboard play (arrow keys, Enter) with spoken square names and moves.
 - Move list; copy the game as PGN at the end.
+- Motion: moves slide, captures glitch apart, a king in check glitches, and checkmate
+  "derezzes" the king into falling pixel blocks under a red scan line. Reduced motion turns
+  this off.
+- Optional sound effects, synthesized in the browser (no audio files); off by default.
 
 ## How it's built
 

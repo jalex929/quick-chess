@@ -333,7 +333,7 @@ export function App() {
       return;
     }
     setShowResult(false);
-    const t = window.setTimeout(() => setShowResult(true), 1700);
+    const t = window.setTimeout(() => setShowResult(true), 2000);
     return () => window.clearTimeout(t);
   }, [over]); // eslint-disable-line react-hooks/exhaustive-deps
 
