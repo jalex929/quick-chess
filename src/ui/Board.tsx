@@ -1,0 +1,289 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ALL_SQUARES,
+  COLOR_NAMES,
+  PIECE_NAMES,
+  isLightSquare,
+  type Color,
+  type Game,
+  type Square,
+} from "../engine/game";
+import { PieceIcon } from "./Pieces";
+
+interface Props {
+  game: Game;
+  /** Which side sits at the bottom. */
+  orientation: Color;
+  /** Which colors the person at this screen may move right now (empty while the bot thinks). */
+  movable: Color[];
+  onMove: (from: Square, to: Square) => void;
+  /** Show the coordinates a–h / 1–8 along the edges. */
+  coordinates?: boolean;
+  /** Pieces of this color are drawn upside down (face-to-face play). */
+  upsideDown?: Color | null;
+}
+
+const fileIndex = (sq: Square) => sq.charCodeAt(0) - 97;
+const rankIndex = (sq: Square) => Number(sq[1]) - 1;
+const squareAt = (file: number, rank: number) =>
+  `${String.fromCharCode(97 + file)}${rank + 1}` as Square;
+
+/** Squares in screen order (top-left first) for this orientation. */
+function screenOrder(orientation: Color): Square[] {
+  return orientation === "w" ? ALL_SQUARES : [...ALL_SQUARES].reverse();
+}
+
+interface Drag {
+  from: Square;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  x: number;
+  y: number;
+  moved: boolean;
+  /** The piece was already selected when pressed: a tap without moving deselects it. */
+  wasSelected: boolean;
+}
+
+export function Board({
+  game,
+  orientation,
+  movable,
+  onMove,
+  coordinates = true,
+  upsideDown,
+}: Props) {
+  const [selected, setSelected] = useState<Square | null>(null);
+  const [focus, setFocus] = useState<Square>(orientation === "w" ? "e2" : "e7");
+  const [drag, setDrag] = useState<Drag | null>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const squareRefs = useRef(new Map<Square, HTMLButtonElement>());
+  /** When the last touch or mouse press happened: the click that follows it is not a key press. */
+  const lastPointer = useRef(-Infinity);
+
+  const order = useMemo(() => screenOrder(orientation), [orientation]);
+  const targets = useMemo(
+    () => (selected ? new Set(game.targets(selected)) : new Set<Square>()),
+    [game, selected],
+  );
+  const last = game.lastMove();
+  const checked = game.checkedKing();
+
+  // A new position (a move was made, undone or the board reset): drop any selection.
+  useEffect(() => {
+    setSelected(null);
+    setDrag(null);
+  }, [game]);
+
+  const canPick = (sq: Square) => {
+    const p = game.pieceAt(sq);
+    return !!p && p.color === game.turn() && movable.includes(p.color);
+  };
+
+  const tryMove = (from: Square, to: Square) => {
+    if (!game.targets(from).includes(to)) return false;
+    onMove(from, to);
+    setSelected(null);
+    return true;
+  };
+
+  /** Tap or Enter on a square. */
+  const activate = (sq: Square) => {
+    if (selected && targets.has(sq)) {
+      tryMove(selected, sq);
+      return;
+    }
+    if (selected === sq) setSelected(null);
+    else if (canPick(sq)) setSelected(sq);
+    else setSelected(null);
+  };
+
+  const squareFromPoint = (x: number, y: number): Square | null => {
+    const rect = boardRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const col = Math.floor(((x - rect.left) / rect.width) * 8);
+    const row = Math.floor(((y - rect.top) / rect.height) * 8);
+    if (col < 0 || col > 7 || row < 0 || row > 7) return null;
+    return order[row * 8 + col] ?? null;
+  };
+
+  const onPointerDown = (event: React.PointerEvent, sq: Square) => {
+    if (event.button !== 0) return;
+    lastPointer.current = performance.now();
+    setFocus(sq);
+    if (selected && targets.has(sq)) {
+      tryMove(selected, sq);
+      return;
+    }
+    if (!canPick(sq)) {
+      setSelected(null);
+      return;
+    }
+    event.preventDefault();
+    boardRef.current?.setPointerCapture(event.pointerId);
+    setDrag({
+      from: sq,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      x: event.clientX,
+      y: event.clientY,
+      moved: false,
+      wasSelected: selected === sq,
+    });
+    setSelected(sq);
+  };
+
+  const onPointerMove = (event: React.PointerEvent) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const moved =
+      drag.moved || Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 6;
+    setDrag({ ...drag, x: event.clientX, y: event.clientY, moved });
+  };
+
+  const onPointerUp = (event: React.PointerEvent) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const to = squareFromPoint(event.clientX, event.clientY);
+    if (drag.moved) {
+      if (to && to !== drag.from) tryMove(drag.from, to);
+    } else if (drag.wasSelected) {
+      setSelected(null); // a second tap on the same piece puts it down
+    }
+    setDrag(null);
+  };
+
+  const onKeyDown = (event: React.KeyboardEvent) => {
+    const steps: Record<string, [number, number]> = {
+      ArrowUp: [0, 1],
+      ArrowDown: [0, -1],
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+    };
+    const step = steps[event.key];
+    if (step) {
+      event.preventDefault();
+      // Arrow keys move on screen, so flip them when Black is at the bottom.
+      const dir = orientation === "w" ? 1 : -1;
+      const f = Math.min(7, Math.max(0, fileIndex(focus) + step[0] * dir));
+      const r = Math.min(7, Math.max(0, rankIndex(focus) + step[1] * dir));
+      const next = squareAt(f, r);
+      setFocus(next);
+      squareRefs.current.get(next)?.focus();
+    } else if (event.key === "Escape" && selected) {
+      event.preventDefault();
+      setSelected(null);
+    }
+  };
+
+  const label = (sq: Square) => {
+    const p = game.pieceAt(sq);
+    const parts = [
+      sq,
+      p ? `${COLOR_NAMES[p.color].toLowerCase()} ${PIECE_NAMES[p.type]}` : "empty",
+    ];
+    if (sq === selected) parts.push("selected");
+    if (targets.has(sq)) parts.push(p ? "can capture" : "can move here");
+    if (sq === checked) parts.push("in check");
+    if (last && (sq === last.from || sq === last.to)) parts.push("last move");
+    return parts.join(", ");
+  };
+
+  const dragOffset = (() => {
+    if (!drag?.moved) return null;
+    const rect = boardRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const size = rect.width / 8;
+    return { x: drag.x - rect.left - size / 2, y: drag.y - rect.top - size / 2, size };
+  })();
+
+  return (
+    <div className="board-frame">
+      <div
+        ref={boardRef}
+        className={`board ${drag?.moved ? "board--dragging" : ""}`}
+        role="grid"
+        aria-label={`Chess board, ${COLOR_NAMES[orientation]} at the bottom. Arrow keys move between squares; Enter picks up and puts down a piece.`}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={() => setDrag(null)}
+        onKeyDown={onKeyDown}
+      >
+        {[0, 1, 2, 3, 4, 5, 6, 7].map((row) => (
+          <div key={row} role="row" className="board__row">
+            {order.slice(row * 8, row * 8 + 8).map((sq, col) => {
+              const piece = game.pieceAt(sq);
+              const hidden = drag?.moved && drag.from === sq;
+              const classes = [
+                "square",
+                isLightSquare(sq) ? "square--light" : "square--dark",
+                sq === selected && "square--selected",
+                last && (sq === last.from || sq === last.to) && "square--last",
+                sq === checked && "square--check",
+                targets.has(sq) && (piece ? "square--capture" : "square--target"),
+              ]
+                .filter(Boolean)
+                .join(" ");
+              return (
+                <button
+                  key={sq}
+                  ref={(el) => {
+                    if (el) squareRefs.current.set(sq, el);
+                    else squareRefs.current.delete(sq);
+                  }}
+                  type="button"
+                  role="gridcell"
+                  className={classes}
+                  data-square={sq}
+                  aria-label={label(sq)}
+                  aria-selected={sq === selected}
+                  tabIndex={sq === focus ? 0 : -1}
+                  onFocus={() => setFocus(sq)}
+                  onPointerDown={(e) => onPointerDown(e, sq)}
+                  onClick={() => {
+                    // Pointer presses are handled on pointerdown/up. A click with no press
+                    // just before it came from the keyboard (Enter or Space).
+                    if (performance.now() - lastPointer.current > 800) activate(sq);
+                  }}
+                >
+                  {coordinates && col === 0 && (
+                    <span className="square__rank" aria-hidden="true">
+                      {sq[1]}
+                    </span>
+                  )}
+                  {coordinates && row === 7 && (
+                    <span className="square__file" aria-hidden="true">
+                      {sq[0]}
+                    </span>
+                  )}
+                  {piece && !hidden && (
+                    <PieceIcon
+                      type={piece.type}
+                      color={piece.color}
+                      className={`piece ${upsideDown === piece.color ? "piece--flipped" : ""}`}
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+        {dragOffset && drag && game.pieceAt(drag.from) && (
+          <div
+            className="drag-ghost"
+            style={{
+              width: dragOffset.size,
+              height: dragOffset.size,
+              transform: `translate(${dragOffset.x}px, ${dragOffset.y}px) scale(1.12)`,
+            }}
+            aria-hidden="true"
+          >
+            <PieceIcon
+              type={game.pieceAt(drag.from)!.type}
+              color={game.pieceAt(drag.from)!.color}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
