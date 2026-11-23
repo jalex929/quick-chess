@@ -80,6 +80,12 @@ function material(game: Game) {
   return { lost, lead: score("w") - score("b") };
 }
 
+/** The back link goes to the Lab page (relative when served from jayfox.design/lab/). */
+const LAB_URL =
+  typeof location !== "undefined" && location.pathname.includes("/lab/")
+    ? "../"
+    : "https://jayfox.design/lab";
+
 export function App() {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [session, setSession] = useState<Session | null>(() => {
@@ -867,9 +873,9 @@ function Shell({
   return (
     <div className="app">
       <header className="topbar">
-        <a className="topbar__home" href="https://jayfox.design" aria-label="Back to jayfox.design">
+        <a className="topbar__home" href={LAB_URL} aria-label="Back to the Lab at jayfox.design">
           <span aria-hidden="true">←</span>
-          <span className="topbar__home-text">jayfox.design</span>
+          <span className="topbar__home-text">jayfox.design/lab</span>
         </a>
         <h1 className="topbar__title">Quick Chess</h1>
         <div className="topbar__actions">
