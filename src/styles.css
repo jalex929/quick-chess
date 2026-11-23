@@ -1816,3 +1816,65 @@ fieldset {
     font-size: 13px;
   }
 }
+
+/* ---------- Phones: a condensed match menu ----------
+   The setup took more than a screen on small phones, with Start floating over the options and
+   empty space under them. Tighter type and cards, and Start sits right after the last choice
+   (sticking to the bottom only when the menu is taller than the screen). */
+@media (max-width: 860px) {
+  .setup {
+    gap: 12px;
+    padding: 14px 12px 16px;
+    align-content: start;
+  }
+  .setup__intro {
+    min-height: 0;
+  }
+  .setup__title {
+    font-size: 24px;
+    line-height: 1.05;
+  }
+  .setup__form {
+    gap: 14px;
+    padding: 14px 12px 12px;
+  }
+  .choice__legend {
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+  .mode__options {
+    gap: 6px;
+  }
+  .mode__box {
+    min-height: 0;
+    padding: 8px 10px;
+  }
+  .mode__label {
+    font-size: 16px;
+  }
+  .mode__hint {
+    font-size: 12px;
+  }
+  .choice__box {
+    padding: 6px 4px;
+    gap: 0;
+  }
+  .choice__label {
+    font-size: 13.5px;
+  }
+  .choice__tag {
+    font-size: 11px;
+  }
+  .choice__note {
+    margin: -2px 0 6px;
+    font-size: 12px;
+  }
+  .button--start {
+    position: sticky;
+    left: auto;
+    right: auto;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    margin-top: 2px;
+    min-height: 52px;
+  }
+}
