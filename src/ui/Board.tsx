@@ -413,6 +413,8 @@ interface Crackle {
  */
 function KingFall({ color, tone }: { color: Color; tone: "win" | "lose" }) {
   const [crackle, setCrackle] = useState<Crackle | null>(null);
+  /** The glow behind the king: sheared into a slice during a tear, flickering between. */
+  const [glow, setGlow] = useState({ top: 0, bottom: 0, shift: 0, o: 0.9 });
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     let timer = 0;
@@ -425,9 +427,18 @@ function KingFall({ color, tone }: { color: Color; tone: "win" | "lose" }) {
       const age = (performance.now() - started) / 1000;
       if (age < 45 && Math.random() < 0.3) playIfOn("crackle", 1 - age / 45);
       const top = Math.round(rand(0, 60));
+      // The glow tears on its own slice (not the king's), or sometimes just jumps sideways.
+      const glowTop = Math.random() < 0.3 ? 0 : Math.round(rand(0, 55));
+      setGlow({
+        top: glowTop,
+        bottom: glowTop === 0 ? 0 : Math.round(rand(0, 85 - glowTop)),
+        shift: Math.round(rand(-18, 18)),
+        o: rand(0.55, 1),
+      });
       setCrackle({
         top,
-        bottom: Math.round(rand(0, 88 - top)),
+        // Never more than about 60% of the king at once, so it always reads as broken.
+        bottom: Math.round(rand(Math.max(0, 40 - top), 88 - top)),
         shift: Math.round(rand(-14, 14)),
         lines: Array.from({ length: Math.floor(Math.random() * 3) }, () => ({
           y: Math.round(rand(8, 92)),
@@ -438,6 +449,7 @@ function KingFall({ color, tone }: { color: Color; tone: "win" | "lose" }) {
       timer = window.setTimeout(
         () => {
           setCrackle(null);
+          setGlow({ top: 0, bottom: 0, shift: Math.round(rand(-3, 3)), o: rand(0.4, 0.95) });
           const gap = Math.random() < 0.12 ? rand(250, 600) : rand(25, 140);
           timer = window.setTimeout(burst, gap);
         },
@@ -456,6 +468,17 @@ function KingFall({ color, tone }: { color: Color; tone: "win" | "lose" }) {
     : undefined;
   return (
     <span className={`kingfall kingfall--${tone}`} aria-hidden="true">
+      <span
+        className="kingfall__glow"
+        style={
+          {
+            "--glow-top": `${glow.top}%`,
+            "--glow-bottom": `${glow.bottom}%`,
+            "--glow-shift": `${glow.shift}%`,
+            "--glow-o": glow.o,
+          } as React.CSSProperties
+        }
+      />
       <span className="captured-ghost captured-ghost--king">
         <PieceIcon type="k" color={color} className="piece" />
         <PieceIcon type="k" color={color} className="piece captured-ghost__echo" />

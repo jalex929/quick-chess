@@ -1161,14 +1161,6 @@ fieldset {
 
 .square--mated {
   z-index: 4;
-  background:
-    radial-gradient(
-      circle,
-      rgba(var(--mate-rgb), 0.9) 0%,
-      rgba(var(--mate-rgb), 0.25) 60%,
-      transparent 80%
-    ),
-    var(--sq-dark);
 }
 
 /* The rest of the losing side loses signal. */
@@ -1769,4 +1761,19 @@ fieldset {
   .result-hud {
     animation: none;
   }
+}
+
+/* The glow under the fallen king glitches too: it shears into slices and flickers. */
+.kingfall__glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle,
+    rgba(var(--tone-rgb), 0.9) 0%,
+    rgba(var(--tone-rgb), 0.25) 60%,
+    transparent 80%
+  );
+  opacity: var(--glow-o, 0.9);
+  clip-path: inset(var(--glow-top, 0%) 0 var(--glow-bottom, 0%) 0);
+  transform: translateX(var(--glow-shift, 0%));
 }
