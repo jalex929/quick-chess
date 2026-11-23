@@ -164,6 +164,15 @@ test("nothing scrolls sideways and Start is on screen", async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
 });
 
+test("the neon pieces show in the intro on every screen", async ({ page }) => {
+  const art = page.locator(".setup__art svg");
+  await expect(art).toHaveCount(3);
+  for (const piece of await art.all()) {
+    await expect(piece).toBeInViewport();
+    expect((await piece.boundingBox())?.width).toBeGreaterThanOrEqual(32);
+  }
+});
+
 test("moves slide, captures glitch out, and the sound toggle is remembered", async ({ page }) => {
   await page.getByRole("radio", { name: /Pass & play/ }).check();
   await page.getByRole("button", { name: /Start game/ }).click();

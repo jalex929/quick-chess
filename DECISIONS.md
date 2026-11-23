@@ -109,6 +109,18 @@ approved). Synthesized in the browser, so there are no audio files to license.
 **Phone menu condensed** (Jay's call). The match setup was more than a screen tall on small
 phones. It now fits on most phones, with Start right after the last choice.
 
+**The neon pieces stay on phones** (Jay's call; placement is a build default, 2026-11-23).
+The knight, king and queen under the intro were hidden on phones to save room. They're back,
+smaller (40 px), on the "// new match" line beside the kicker. That keeps them in view on the
+smallest phones (iPhone SE) and adds almost no height, so the condensed menu stays condensed.
+Beside the headline would be nicer, but it doesn't fit next to "Play a fast game." on a
+375 px screen.
+
+**Setup choices make a small sound when sound is on** (Jay's call; the sounds are a build
+default). Picking any match option plays a soft two-step blip, and Start game plays a short
+rising chirp, so it's clear sound is on before the game begins. Both are quiet, made in the
+browser like the other effects, and silent when sound is off.
+
 **Open source under MIT** (Jay's call).
 
 ## Design decisions
