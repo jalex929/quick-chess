@@ -2,6 +2,8 @@
 
 Read `README.md` and `DECISIONS.md` first.
 
+- Record every product, design or engineering decision in `DECISIONS.md`: what, why, the
+  trade-off, and who made the call (Jay's call / proposed, approved / build default).
 - Rules shown to the player come from chess.js via `src/engine/game.ts`. The bot uses its own
   fast generator in `position.ts`; any change there must keep the perft tests passing.
 - Keep the bot off the main thread (Web Worker) and inside its time budget.
