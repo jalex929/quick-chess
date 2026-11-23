@@ -20,7 +20,7 @@ export type BotLevel = "easy" | "medium" | "hard" | "expert";
  * Four levels aimed at roughly these ratings: Easy ~400, Medium ~800, Hard ~1200,
  * Expert 1800+. The ratings are targets the levels were tuned toward, not measured;
  * the levels are checked against each other (each beats the one below), see
- * docs/decisions.md.
+ * DECISIONS.md.
  */
 export const BOT_LEVELS: { id: BotLevel; label: string; hint: string; rating: string }[] = [
   { id: "easy", label: "Easy", hint: "New to chess", rating: "~400" },
