@@ -36,6 +36,7 @@ import {
 import { Board } from "./ui/Board";
 import { PieceIcon } from "./ui/Pieces";
 import { Setup } from "./ui/Setup";
+import { GIF_PLIES } from "./ui/gifConstants";
 import { play as playSound, unlockAudio } from "./ui/sound";
 
 const SOUND_KEY = "quick-chess:sound";
@@ -100,6 +101,9 @@ export function App() {
   const [announcement, setAnnouncement] = useState("");
   const [showResult, setShowResult] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [gifState, setGifState] = useState<"idle" | "making" | "shared" | "downloaded" | "failed">(
+    "idle",
+  );
 
   const game = useMemo(() => new Game(session?.moves ?? []), [session?.moves]);
   const outcome: Outcome = session?.ending ?? game.outcome();
@@ -350,6 +354,7 @@ export function App() {
     setConfirm(null);
     setPendingPromotion(null);
     setCopied(false);
+    setGifState("idle");
     setAnnouncement(
       s.mode === "bot" ? "New game against the bot." : "New pass and play game. White to move.",
     );
@@ -427,6 +432,30 @@ export function App() {
 
   const passView = session?.settings.passView ?? settings.passView;
   const orientation = useFlipOrientation(mode, passView, human, game.turn(), over);
+
+  const shareGif = async () => {
+    if (!session) return;
+    setGifState("making");
+    try {
+      const { makeGameGif, shareOrDownload } = await import("./ui/gifExport");
+      const winner = "winner" in outcome ? outcome.winner : null;
+      const tone = !winner ? "draw" : mode === "bot" && winner !== human ? "lose" : "win";
+      const script = endingScript(outcome, mode, tone);
+      const how = describeOutcome(outcome).detail.replace(/\.$/, "");
+      const bytes = await makeGameGif({
+        moves: session.moves,
+        orientation: mode === "bot" ? human : "w",
+        banner: script.banner,
+        subtitle: `${how} · ${Math.ceil(session.moves.length / 2)} moves`.slice(0, 44),
+        tone,
+      });
+      const name = `quick-chess-${script.banner.toLowerCase().replace(/\s+/g, "-")}.gif`;
+      setGifState(await shareOrDownload(bytes, name));
+      setAnnouncement("Game GIF ready.");
+    } catch {
+      setGifState("failed");
+    }
+  };
 
   // ---- Screens ----
   if (!session) {
@@ -568,6 +597,26 @@ export function App() {
                       Main menu
                     </button>
                   </div>
+                  <button
+                    type="button"
+                    className="button button--gif"
+                    onClick={() => void shareGif()}
+                    disabled={gifState === "making"}
+                    aria-describedby="gif-note"
+                  >
+                    {gifState === "making"
+                      ? "Making GIF…"
+                      : gifState === "downloaded"
+                        ? "GIF saved ✓"
+                        : gifState === "shared"
+                          ? "Shared ✓"
+                          : "Share GIF"}
+                  </button>
+                  <p id="gif-note" className="card__note">
+                    {gifState === "failed"
+                      ? "Couldn't make the GIF on this device."
+                      : `An animated replay of the last ${GIF_PLIES} moves.`}
+                  </p>
                   <div className="card__actions card__actions--quiet">
                     <button type="button" className="link-button" onClick={() => void copyPgn()}>
                       {copied ? "Copied!" : "Copy game (PGN)"}

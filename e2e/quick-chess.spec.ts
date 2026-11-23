@@ -182,3 +182,22 @@ test("moves slide, captures glitch out, and the sound toggle is remembered", asy
     "true",
   );
 });
+
+test("Share GIF makes an animated replay of the finished game", async ({ page, isMobile }) => {
+  test.skip(isMobile, "desktop downloads the file; phones open the share sheet");
+  await page.getByRole("radio", { name: /Pass & play/ }).check();
+  await page.getByRole("button", { name: /Start game/ }).click();
+  await move(page, "f2", "f3");
+  await move(page, "e7", "e5");
+  await move(page, "g2", "g4");
+  await move(page, "d8", "h4");
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Share GIF" }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe("quick-chess-black-wins.gif");
+  const bytes = await (await file.createReadStream()).toArray();
+  const buffer = Buffer.concat(bytes);
+  expect(buffer.subarray(0, 6).toString("ascii")).toBe("GIF89a");
+  expect(buffer.length).toBeGreaterThan(50_000);
+  await expect(page.getByRole("button", { name: "GIF saved ✓" })).toBeVisible();
+});

@@ -296,7 +296,10 @@ export function Board({
                     </span>
                   )}
                   {piece && !hidden && mated === piece.color && piece.type === "k" ? (
-                    <Derez color={piece.color} />
+                    <>
+                      <Derez color={piece.color} />
+                      <Infection tone={mateTone} />
+                    </>
                   ) : piece && !hidden ? (
                     <span
                       key={slide ? `s${animation!.key}` : "still"}
@@ -432,6 +435,103 @@ function Derez({ color }: { color: Color }) {
         <PieceIcon type="k" color={color} className="piece" />
       </span>
       {cells}
+    </span>
+  );
+}
+
+/** Infection canvas: 10 pixels per square, covering the square plus 0.4 of a square around it. */
+const INFECTION_PX = 18;
+
+/**
+ * Where the king fell, the square stays infected. Drawn on a tiny canvas scaled up so each
+ * pixel is a crisp tenth of a square: a hard-edged mass in the ending's color that wanders
+ * and grows at random past the square's edges, with pink/cyan split pixels and sideways
+ * slice tears, the same glitch language as captures and the derez. Never loops.
+ */
+function Infection({ tone }: { tone: "win" | "lose" }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    const n = INFECTION_PX;
+    canvas.width = n;
+    canvas.height = n;
+    const main: [number, number, number] = tone === "win" ? [200, 255, 60] : [255, 77, 94];
+    const pink: [number, number, number] = [255, 46, 151];
+    const cyan: [number, number, number] = [46, 242, 255];
+    const levels = [0.38, 0.7, 1];
+    // Blobs in canvas units; the square is the middle (4..14).
+    const blobs = Array.from({ length: 6 }, (_, i) => ({
+      x: i === 0 ? 9 : 5 + Math.random() * 8,
+      y: i === 0 ? 9 : 5 + Math.random() * 8,
+      r: i === 0 ? 4.5 : 1 + Math.random() * 2,
+    }));
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const cells = new Uint8Array(n * n);
+    let timer = 0;
+    const draw = () => {
+      for (const [i, blob] of blobs.entries()) {
+        if (i === 0) {
+          blob.r = 4.2 + Math.random() * 1.1;
+          continue;
+        }
+        // Jumps rather than glides: whole pixels at a time.
+        if (Math.random() < 0.5)
+          blob.x = Math.min(13, Math.max(5, blob.x + Math.round((Math.random() - 0.5) * 3)));
+        if (Math.random() < 0.5)
+          blob.y = Math.min(13, Math.max(5, blob.y + Math.round((Math.random() - 0.5) * 3)));
+        if (Math.random() < 0.3)
+          blob.r = Math.min(3, Math.max(1, blob.r + (Math.random() - 0.5) * 2));
+      }
+      // Which cells are infected this frame, and how brightly (0 = clear).
+      for (let y = 0; y < n; y++) {
+        for (let x = 0; x < n; x++) {
+          let inside = 0;
+          for (const blob of blobs) {
+            const d = Math.max(Math.abs(x + 0.5 - blob.x), Math.abs(y + 0.5 - blob.y) * 1.1);
+            const edge = blob.r + (Math.random() - 0.5) * 1.4; // a ragged, blocky edge
+            if (d < edge) inside = Math.max(inside, d < edge - 2 ? 3 : 2);
+          }
+          // Inside the mass, some pixels drop out; at the edge, more do.
+          const keep =
+            inside === 3
+              ? Math.random() < 0.88
+              : inside === 2
+                ? Math.random() < 0.55
+                : Math.random() < 0.006;
+          cells[y * n + x] = keep ? 1 + Math.floor(Math.random() * (inside === 3 ? 3 : 2)) : 0;
+        }
+      }
+      ctx.clearRect(0, 0, n, n);
+      for (let y = 0; y < n; y++) {
+        for (let x = 0; x < n; x++) {
+          const level = cells[y * n + x]!;
+          if (!level) continue;
+          const roll = Math.random();
+          const [r, g, b] = roll < 0.07 ? pink : roll < 0.14 ? cyan : main;
+          ctx.fillStyle = `rgba(${r},${g},${b},${levels[level - 1]})`;
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+      // Slice tears: a band of rows shoved sideways, like the capture glitch.
+      const tears = Math.random() < 0.45 ? 1 + Math.floor(Math.random() * 2) : 0;
+      for (let t = 0; t < tears; t++) {
+        const y = Math.floor(Math.random() * n);
+        const h = 1 + Math.floor(Math.random() * 2);
+        const dx = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 3));
+        const band = ctx.getImageData(0, y, n, h);
+        ctx.clearRect(0, y, n, h);
+        ctx.putImageData(band, dx, y);
+      }
+      if (!reduce) timer = window.setTimeout(draw, 55 + Math.random() * 140);
+    };
+    draw();
+    return () => window.clearTimeout(timer);
+  }, [tone]);
+  return (
+    <span className={`infection infection--${tone}`} aria-hidden="true">
+      <canvas ref={ref} />
     </span>
   );
 }

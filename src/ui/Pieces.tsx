@@ -19,7 +19,7 @@ interface Shape {
   marks?: [number, number, number][];
 }
 
-const SHAPES: Record<PieceType, Shape> = {
+export const SHAPES: Record<PieceType, Shape> = {
   p: {
     body: [
       "M16 36.5c0-6 2.2-10.5 4.6-12.4h3.8c2.4 1.9 4.6 6.4 4.6 12.4z",
@@ -125,5 +125,30 @@ export function PieceIcon({
         <circle key={`m${i}`} cx={cx} cy={cy} r={r} fill={line} />
       ))}
     </svg>
+  );
+}
+
+/** The same colors as the CSS custom properties, for drawing outside the page (GIF export). */
+export const PIECE_COLORS: Record<Color, { fill: string; line: string; glow: string }> = {
+  w: { fill: "#effcff", line: "#12b8c6", glow: "#2ef2ff" },
+  b: { fill: "#2b0b25", line: "#ff4fae", glow: "#ff2e97" },
+};
+
+/** A standalone SVG document for one piece, with real colors (no CSS variables). */
+export function pieceSvg(type: PieceType, color: Color, size = 90): string {
+  const shape = SHAPES[type];
+  const { fill, line } = PIECE_COLORS[color];
+  const body = shape.body.map((d) => `<path d="${d}"/>`).join("");
+  const dots = (shape.dots ?? [])
+    .map(([cx, cy, r]) => `<circle cx="${cx}" cy="${cy}" r="${r}"/>`)
+    .join("");
+  const detail = (shape.detail ?? []).map((d) => `<path d="${d}"/>`).join("");
+  const marks = (shape.marks ?? [])
+    .map(([cx, cy, r]) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${line}"/>`)
+    .join("");
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" width="${size}" height="${size}">` +
+    `<g fill="${fill}" stroke="${line}" stroke-width="1.6" stroke-linejoin="round">${body}${dots}</g>` +
+    `<g fill="none" stroke="${line}" stroke-width="1.3" stroke-linecap="round">${detail}</g>${marks}</svg>`
   );
 }
