@@ -1,149 +1,43 @@
 <!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=block"
-      rel="stylesheet"
-    />
-    <style>
-      * {
-        box-sizing: border-box;
-        margin: 0;
-      }
-      body {
-        width: 1200px;
-        height: 630px;
-        overflow: hidden;
-        color: #efeaff;
-        font-family: "Chakra Petch", sans-serif;
-        background:
-          radial-gradient(900px 500px at 95% -10%, rgba(255, 46, 151, 0.22), transparent 60%),
-          radial-gradient(700px 500px at -10% 110%, rgba(46, 242, 255, 0.16), transparent 60%),
-          #0b0716;
-      }
-      body::after {
-        content: "";
-        position: fixed;
-        inset: 0;
-        background: repeating-linear-gradient(
-          to bottom,
-          rgba(255, 255, 255, 0.03) 0 1px,
-          transparent 1px 3px
-        );
-      }
-      .grid {
-        position: absolute;
-        inset: 0;
-        background-image:
-          linear-gradient(rgba(59, 43, 104, 0.35) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(59, 43, 104, 0.35) 1px, transparent 1px);
-        background-size: 48px 48px;
-        mask-image: linear-gradient(90deg, #000 0%, transparent 55%);
-      }
-      .text {
-        position: absolute;
-        left: 72px;
-        top: 70px;
-        width: 560px;
-      }
-      .kicker {
-        font-family: "JetBrains Mono", monospace;
-        color: #ff2e97;
-        font-size: 22px;
-        letter-spacing: 0.06em;
-      }
-      h1 {
-        margin-top: 14px;
-        font-size: 104px;
-        line-height: 0.92;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.02em;
-        text-shadow:
-          0 0 26px rgba(46, 242, 255, 0.45),
-          4px 0 0 rgba(255, 46, 151, 0.65),
-          -3px 0 0 rgba(46, 242, 255, 0.55);
-      }
-      .tag {
-        margin-top: 26px;
-        font-size: 30px;
-        font-weight: 500;
-        line-height: 1.2;
-        color: #efeaff;
-      }
-      ul {
-        list-style: none;
-        padding: 0;
-        margin-top: 24px;
-        display: grid;
-        gap: 10px;
-        font-size: 22px;
-        color: #b0a7d6;
-      }
-      li {
-        padding-left: 28px;
-        position: relative;
-      }
-      li::before {
-        content: "";
-        position: absolute;
-        left: 2px;
-        top: 9px;
-        width: 11px;
-        height: 11px;
-        transform: rotate(45deg);
-        border: 2px solid #2ef2ff;
-        box-shadow: 0 0 8px #2ef2ff;
-      }
-      .by {
-        position: absolute;
-        left: 72px;
-        bottom: 44px;
-        font-family: "JetBrains Mono", monospace;
-        font-weight: 700;
-        font-size: 17px;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: #b0a7d6;
-      }
-      .board {
-        position: absolute;
-        right: 64px;
-        top: 50px;
-        width: 530px;
-        height: 530px;
-        filter: drop-shadow(0 0 40px rgba(255, 46, 151, 0.35));
-      }
-      .board img {
-        width: 100%;
-        height: 100%;
-        display: block;
-      }
-      .tagbox {
-        position: absolute;
-        right: 64px;
-        bottom: 26px;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 15px;
-        color: #ff4d5e;
-        letter-spacing: 0.08em;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="grid"></div>
-    <div class="text">
-      <p class="kicker">// fast neon chess</p>
-      <h1>Quick<br />Chess</h1>
-      <p class="tag">Play the bot or pass the phone.</p>
-      <ul>
-        <li>Three bot levels, real chess clocks</li>
-        <li>Glitchy captures, pixel checkmates</li>
-        <li>Free in your browser, no sign-up</li>
-      </ul>
-    </div>
-    <div class="by">jayfox.design</div>
-    <div class="board"><img src="board.png" alt="" /></div>
-  </body>
-</html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=block" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { width: 1200px; height: 630px; overflow: hidden; color: #efeaff; font-family: "Chakra Petch", sans-serif;
+    background: radial-gradient(900px 500px at 95% -10%, rgba(255,46,151,.22), transparent 60%),
+                radial-gradient(700px 500px at -10% 110%, rgba(46,242,255,.16), transparent 60%), #0b0716; }
+  body::after { content: ""; position: fixed; inset: 0; background: repeating-linear-gradient(to bottom, rgba(255,255,255,.03) 0 1px, transparent 1px 3px); }
+  .grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(59,43,104,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(59,43,104,.35) 1px, transparent 1px); background-size: 48px 48px; mask-image: linear-gradient(90deg, #000 0%, transparent 55%); }
+  .text { position: absolute; left: 72px; top: 70px; width: 560px; }
+  .kicker { font-family: "JetBrains Mono", monospace; color: #ff2e97; font-size: 22px; letter-spacing: .06em; }
+  h1 { margin-top: 14px; font-size: 104px; line-height: .92; font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
+    text-shadow: 0 0 26px rgba(46,242,255,.45), 4px 0 0 rgba(255,46,151,.65), -3px 0 0 rgba(46,242,255,.55); }
+  .tag { margin-top: 26px; font-size: 30px; font-weight: 500; line-height: 1.2; color: #efeaff; }
+  ul { list-style: none; padding: 0; margin-top: 24px; display: grid; gap: 10px; font-size: 22px; color: #b0a7d6; }
+  li { padding-left: 28px; position: relative; }
+  li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 11px; height: 11px; transform: rotate(45deg); border: 2px solid #2ef2ff; box-shadow: 0 0 8px #2ef2ff; }
+  .by { position: absolute; left: 72px; bottom: 44px; font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 17px; letter-spacing: .14em; text-transform: uppercase; color: #b0a7d6; }
+  /* The board's own beveled shape (cut top-right and bottom-left corners), used for both the
+     board and its solid pink offset shadow, so the shadow follows the bevel. */
+  .board { position: absolute; right: 78px; top: 44px; width: 524px; height: 524px; --cut: 17px; }
+  .board::before { content: ""; position: absolute; inset: 0; transform: translate(14px, 14px); background: #2ef2ff;
+    clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut))); }
+  .board img { position: relative; width: 100%; height: 100%; display: block;
+    clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut))); }
+  .tagbox { position: absolute; right: 64px; bottom: 26px; font-family: "JetBrains Mono", monospace; font-size: 15px; color: #ff4d5e; letter-spacing: .08em; }
+</style></head>
+<body>
+  <div class="grid"></div>
+  <div class="text">
+    <p class="kicker">// fast neon chess</p>
+    <h1>Quick<br>Chess</h1>
+    <p class="tag">Play the bot or pass the phone.</p>
+    <ul>
+      <li>Four bot levels, real chess clocks</li>
+      <li>Glitchy captures and checkmates</li>
+      <li>Free in your browser, no sign-up</li>
+    </ul>
+  </div>
+  <div class="by">jayfox.design/lab</div>
+  <div class="board"><img src="board.png" alt=""></div>
+</body></html>
