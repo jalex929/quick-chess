@@ -1571,8 +1571,52 @@ fieldset {
 }
 
 /* The capture glitch, slower, glowing in the ending's color. */
+/* The king's version starts already torn: it is never seen whole once it's mated. */
 .captured-ghost--king {
-  animation-duration: 1000ms;
+  animation: king-glitch-out 1000ms steps(1, end) forwards;
+}
+
+@keyframes king-glitch-out {
+  0% {
+    opacity: 1;
+    clip-path: inset(8% 0 52% 0);
+    transform: translate(-8%, 0) skewX(-10deg);
+  }
+  12% {
+    clip-path: inset(46% 0 10% 0);
+    transform: translate(9%, 0) skewX(12deg);
+  }
+  24% {
+    clip-path: inset(22% 0 34% 0);
+    transform: translate(-5%, 1%) scaleX(1.15);
+  }
+  36% {
+    clip-path: inset(58% 0 4% 0);
+    transform: translate(6%, 0);
+  }
+  48% {
+    opacity: 0.85;
+    clip-path: inset(4% 0 66% 0);
+    transform: translate(-10%, 0) skewX(16deg);
+  }
+  60% {
+    clip-path: inset(36% 0 38% 0);
+    transform: translate(4%, 2%) scaleY(0.7);
+  }
+  72% {
+    opacity: 0.6;
+    clip-path: inset(50% 0 30% 0);
+    transform: translate(-3%, 0) scaleX(1.4);
+  }
+  86% {
+    opacity: 0.35;
+    clip-path: inset(46% 0 46% 0);
+    transform: scaleX(1.8);
+  }
+  100% {
+    opacity: 0;
+    clip-path: inset(50% 0 50% 0);
+  }
 }
 
 .captured-ghost--king .piece {
@@ -1599,7 +1643,7 @@ fieldset {
 
 @keyframes ghost-in {
   to {
-    opacity: 0.22;
+    opacity: 0;
   }
 }
 
@@ -1720,7 +1764,7 @@ fieldset {
 
 @media (prefers-reduced-motion: reduce) {
   .kingfall__ghost {
-    opacity: 0.22;
+    opacity: 0;
   }
   .result-hud {
     animation: none;

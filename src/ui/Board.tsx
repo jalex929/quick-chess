@@ -408,8 +408,8 @@ interface Crackle {
 
 /**
  * The mated king leaves the board the way captured pieces do (torn slices and a split-color
- * echo), slower and in the ending's color. A faint ghost stays on its square and crackles at
- * random moments: a short slice tear and a few flickering static lines.
+ * echo), slower and in the ending's color, and is never seen whole again: afterwards it only
+ * flickers back as torn slices at random moments, with a few static lines.
  */
 function KingFall({ color, tone }: { color: Color; tone: "win" | "lose" }) {
   const [crackle, setCrackle] = useState<Crackle | null>(null);
@@ -418,16 +418,18 @@ function KingFall({ color, tone }: { color: Color; tone: "win" | "lose" }) {
     let timer = 0;
     const rand = (a: number, b: number) => a + Math.random() * (b - a);
     const started = performance.now();
-    const burst = (left: number) => {
-      // Each tear crackles; the sound fades out over about 45 seconds of looking at the board.
+    // A constant crackle: tear after tear with only tiny, uneven gaps; now and then a
+    // slightly longer flicker-out so it never settles into a rhythm.
+    const burst = () => {
+      // Some tears make a sound; it fades out over about 45 seconds of looking at the board.
       const age = (performance.now() - started) / 1000;
-      if (age < 45) playIfOn("crackle", 1 - age / 45);
-      const top = Math.round(rand(0, 55));
+      if (age < 45 && Math.random() < 0.3) playIfOn("crackle", 1 - age / 45);
+      const top = Math.round(rand(0, 60));
       setCrackle({
         top,
-        bottom: Math.round(rand(0, 85 - top)),
+        bottom: Math.round(rand(0, 88 - top)),
         shift: Math.round(rand(-14, 14)),
-        lines: Array.from({ length: 1 + Math.floor(Math.random() * 3) }, () => ({
+        lines: Array.from({ length: Math.floor(Math.random() * 3) }, () => ({
           y: Math.round(rand(8, 92)),
           dx: Math.round(rand(-12, 12)),
           w: Math.round(rand(35, 90)),
@@ -436,19 +438,13 @@ function KingFall({ color, tone }: { color: Color; tone: "win" | "lose" }) {
       timer = window.setTimeout(
         () => {
           setCrackle(null);
-          // Sometimes a stutter of two or three tears, then quiet for a random while.
-          timer =
-            left > 0
-              ? window.setTimeout(() => burst(left - 1), rand(40, 110))
-              : window.setTimeout(
-                  () => burst(Math.random() < 0.4 ? Math.floor(rand(1, 3)) : 0),
-                  rand(500, 2400),
-                );
+          const gap = Math.random() < 0.12 ? rand(250, 600) : rand(25, 140);
+          timer = window.setTimeout(burst, gap);
         },
-        rand(60, 190),
+        rand(50, 170),
       );
     };
-    timer = window.setTimeout(() => burst(2), 1150);
+    timer = window.setTimeout(burst, 1000);
     return () => window.clearTimeout(timer);
   }, []);
   const style = crackle
