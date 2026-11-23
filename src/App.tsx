@@ -37,7 +37,7 @@ import { Board } from "./ui/Board";
 import { PieceIcon } from "./ui/Pieces";
 import { Setup } from "./ui/Setup";
 import { GIF_PLIES } from "./ui/gifConstants";
-import { play as playSound, unlockAudio } from "./ui/sound";
+import { play as playSound, setSoundOn, unlockAudio } from "./ui/sound";
 
 const SOUND_KEY = "quick-chess:sound";
 function loadSound(): boolean {
@@ -121,6 +121,7 @@ export function App() {
   const [sound, setSound] = useState(loadSound);
   const soundRef = useRef(sound);
   soundRef.current = sound;
+  useEffect(() => setSoundOn(sound), [sound]);
   const toggleSound = () => {
     const next = !sound;
     if (next) unlockAudio();

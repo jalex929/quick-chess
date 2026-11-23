@@ -10,6 +10,7 @@ import {
   type Square,
 } from "../engine/game";
 import { PieceIcon } from "./Pieces";
+import { playIfOn } from "./sound";
 
 interface Props {
   game: Game;
@@ -416,7 +417,11 @@ function KingFall({ color, tone }: { color: Color; tone: "win" | "lose" }) {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     let timer = 0;
     const rand = (a: number, b: number) => a + Math.random() * (b - a);
+    const started = performance.now();
     const burst = (left: number) => {
+      // Each tear crackles; the sound fades out over about 45 seconds of looking at the board.
+      const age = (performance.now() - started) / 1000;
+      if (age < 45) playIfOn("crackle", 1 - age / 45);
       const top = Math.round(rand(0, 55));
       setCrackle({
         top,

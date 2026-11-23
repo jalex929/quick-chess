@@ -5,7 +5,15 @@
  */
 
 export type Sfx =
-  "move" | "capture" | "check" | "end-win" | "end-lose" | "end-draw" | "tick" | "select";
+  | "move"
+  | "capture"
+  | "check"
+  | "end-win"
+  | "end-lose"
+  | "end-draw"
+  | "tick"
+  | "select"
+  | "crackle";
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
@@ -19,7 +27,7 @@ function audio(): AudioContext | null {
   try {
     ctx = new Ctor();
     master = ctx.createGain();
-    master.gain.value = 0.35;
+    master.gain.value = 0.55;
     master.connect(ctx.destination);
   } catch {
     ctx = null;
@@ -27,10 +35,33 @@ function audio(): AudioContext | null {
   return ctx;
 }
 
+/** Whether the player has sound turned on (set by the app; checked by playIfOn). */
+let soundOn = false;
+export function setSoundOn(on: boolean) {
+  soundOn = on;
+}
+
+/** Plays only if sound is on and the page is visible (for effects that run on their own). */
+export function playIfOn(sfx: Sfx, volume = 1) {
+  if (soundOn && document.visibilityState === "visible") play(sfx, volume);
+}
+
 /** Call from the tap that turns sound on, so the browser lets it play. */
 export function unlockAudio() {
   const a = audio();
   if (a?.state === "suspended") void a.resume();
+}
+
+// Browsers keep audio asleep until a tap. If sound was left on from an earlier visit, wake it
+// on the first tap of this one.
+if (typeof document !== "undefined") {
+  document.addEventListener(
+    "pointerdown",
+    () => {
+      if (soundOn) unlockAudio();
+    },
+    { capture: true },
+  );
 }
 
 function tone(
@@ -102,7 +133,7 @@ function noise(
   src.start(t);
 }
 
-export function play(sfx: Sfx) {
+export function play(sfx: Sfx, volume = 1) {
   const a = audio();
   if (!a || !master) return;
   if (a.state === "suspended") void a.resume();
@@ -124,6 +155,27 @@ export function play(sfx: Sfx) {
       tone(a, { type: "square", from: 988, length: 0.09, volume: 0.3, cutoff: 2600 });
       tone(a, { type: "square", from: 740, at: 0.11, length: 0.12, volume: 0.3, cutoff: 2600 });
       break;
+    case "crackle": {
+      // A short burst of crushed static at a random pitch band, sometimes with a falling blip.
+      const length = 0.03 + Math.random() * 0.09;
+      noise(a, {
+        length,
+        volume: (0.18 + Math.random() * 0.2) * volume,
+        band: 1200 + Math.random() * 4200,
+      });
+      if (Math.random() < 0.5) {
+        const f = 900 + Math.random() * 2200;
+        tone(a, {
+          type: "square",
+          from: f,
+          to: f * (0.25 + Math.random() * 0.3),
+          length: length * 0.8,
+          volume: 0.08 * volume,
+          cutoff: 4000,
+        });
+      }
+      break;
+    }
     case "tick":
       tone(a, { type: "square", from: 1900, length: 0.03, volume: 0.12 });
       break;
