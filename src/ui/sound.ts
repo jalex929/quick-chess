@@ -13,6 +13,8 @@ export type Sfx =
   | "end-draw"
   | "tick"
   | "select"
+  | "option"
+  | "start"
   | "crackle";
 
 let ctx: AudioContext | null = null;
@@ -220,6 +222,23 @@ export function play(sfx: Sfx, volume = 1) {
   switch (sfx) {
     case "select":
       tone(a, { type: "sine", from: 1400, length: 0.04, volume: 0.15 });
+      break;
+    case "option":
+      // Picking a setup choice: a soft two-step blip, just enough to say sound is on.
+      tone(a, { type: "triangle", from: 880, length: 0.035, volume: 0.18 * volume });
+      tone(a, { type: "triangle", from: 1320, at: 0.04, length: 0.045, volume: 0.14 * volume });
+      break;
+    case "start":
+      // Start game: a short rising chirp, a little brighter than an option.
+      tone(a, {
+        type: "square",
+        from: 520,
+        to: 1560,
+        length: 0.14,
+        volume: 0.16 * volume,
+        cutoff: 2600,
+      });
+      tone(a, { type: "sine", from: 2080, at: 0.12, length: 0.08, volume: 0.1 * volume });
       break;
     case "move":
       // A short synth "thunk" with a bright click on top.

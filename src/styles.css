@@ -937,9 +937,6 @@ fieldset {
     gap: 20px;
     padding: 20px 16px 32px;
   }
-  .setup__art {
-    display: none;
-  }
   .setup__lede {
     font-size: 16px;
     margin-top: 10px;
@@ -1872,6 +1869,42 @@ fieldset {
     bottom: calc(10px + env(safe-area-inset-bottom));
     margin-top: 2px;
     min-height: 52px;
+  }
+}
+
+/* ---------- Phones: the neon pieces stay ----------
+   The three pieces under the intro were hidden on phones. They come back smaller, on the
+   "// new match" line, so they add almost no height and Start stays near the last choice. */
+@media (max-width: 860px) {
+  .setup__intro {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "kicker art"
+      "title title"
+      "lede lede";
+    align-items: end;
+    column-gap: 8px;
+  }
+  .setup__kicker {
+    grid-area: kicker;
+    align-self: center;
+  }
+  .setup__title {
+    grid-area: title;
+  }
+  .setup__lede {
+    grid-area: lede;
+  }
+  .setup__art {
+    grid-area: art;
+    display: flex;
+    gap: 0;
+    margin: 0 0 4px;
+  }
+  .setup__art svg {
+    width: 40px;
+    height: 40px;
   }
 }
 
