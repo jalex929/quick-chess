@@ -5,11 +5,13 @@ clock. No accounts; an unfinished game survives a reload.
 
 ## What it does
 
-- **vs Bot** at three levels (Easy / Medium / Hard), as White, Black or random. Undo in untimed games.
+- **vs Bot** at four levels aimed at ~400 / ~800 / ~1200 / 1800+ ratings (Easy, Medium, Hard,
+  Expert), as White, Black or random. Undo in untimed games. Ratings are targets; the levels are
+  checked against each other with `scripts/ladder.ts` (see `docs/decisions.md`, D4).
 - **Pass & play**: the board turns for whoever's move it is, or stays put for face-to-face play
   (the far side's pieces and clock are drawn upside down).
-- **Clocks**: none, 3 + 2, 5, 10, 15 + 10. Time starts after White's first move; leaving the
-  tab pauses it.
+- **Clocks**: none (casual), 3 + 2 and 5 min (blitz), 10 min and 15 + 10 (rapid); "+ 2" adds
+  2 seconds after each move. Time starts after White's first move; leaving the tab pauses it.
 - All the rules: check, mate, stalemate, castling, en passant, promotion (with a picker),
   threefold repetition, fifty moves, insufficient material, timeouts (a draw if the other
   side can't mate), resign, draw offers.

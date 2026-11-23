@@ -189,7 +189,7 @@ describe("Bot", () => {
 
   it("plays only legal moves", () => {
     const g = new Game();
-    for (const level of ["easy", "medium", "hard"] as const) {
+    for (const level of ["easy", "medium", "hard", "expert"] as const) {
       const choice = chooseMove(g.moves, level, steady, frozen)!;
       expect(g.play(fromUci(choice.uci))).not.toBeNull();
     }
@@ -198,7 +198,7 @@ describe("Bot", () => {
   it("takes a free queen", () => {
     // 1. e4 d5 2. Qg4?? and the c8 bishop can take the queen.
     const g = play("e2e4", "d7d5", "d1g4");
-    for (const level of ["easy", "medium", "hard"] as const) {
+    for (const level of ["easy", "medium", "hard", "expert"] as const) {
       expect(chooseMove(g.moves, level, steady, frozen)!.uci, level).toBe("c8g4");
     }
   });
@@ -206,7 +206,7 @@ describe("Bot", () => {
   it("saves its attacked queen", () => {
     // 1. e4 e5 2. Qh5 Nc6 3. a3 g6: the pawn on g6 hits the queen; it has to move.
     const g = play("e2e4", "e7e5", "d1h5", "b8c6", "a2a3", "g7g6");
-    for (const level of ["easy", "medium", "hard"] as const) {
+    for (const level of ["easy", "medium", "hard", "expert"] as const) {
       expect(fromUci(chooseMove(g.moves, level, steady, frozen)!.uci).from, level).toBe("h5");
     }
   });
@@ -214,7 +214,7 @@ describe("Bot", () => {
   it("finds mate in one", () => {
     // Scholar's mate set-up: Qxf7#.
     const g = play("e2e4", "e7e5", "f1c4", "b8c6", "d1h5", "g8f6");
-    for (const level of ["easy", "medium", "hard"] as const) {
+    for (const level of ["easy", "medium", "hard", "expert"] as const) {
       expect(chooseMove(g.moves, level, Math.random, frozen)!.uci, level).toBe("h5f7");
     }
   });
@@ -223,13 +223,21 @@ describe("Bot", () => {
     expect(chooseMove(play("f2f3", "e7e5", "g2g4", "d8h4").moves, "hard")).toBeNull();
   });
 
-  it("hard stays inside its time budget in a busy middlegame", () => {
+  it("expert searches deep and stays inside its time budget in a busy middlegame", () => {
     const g = play("e2e4", "e7e5", "g1f3", "b8c6", "f1c4", "g8f6", "d2d3", "f8c5", "c2c3", "d7d6");
     const t0 = performance.now();
-    const choice = chooseMove(g.moves, "hard")!;
+    const choice = chooseMove(g.moves, "expert")!;
     const took = performance.now() - t0;
     expect(g.play(fromUci(choice.uci))).not.toBeNull();
-    expect(took).toBeLessThan(2500);
-    expect(choice.depth).toBeGreaterThanOrEqual(4);
+    expect(took).toBeLessThan(3500);
+    expect(choice.depth).toBeGreaterThanOrEqual(5);
+  });
+
+  it("expert finds a mate in two that the lower levels can miss", () => {
+    // Legal's mate: after 5... Bxd1, White mates with 6. Bxf7+ Ke7 7. Nd5#.
+    const g = play("e2e4", "e7e5", "g1f3", "d7d6", "f1c4", "c8g4", "b1c3", "g7g6", "f3e5", "g4d1");
+    const choice = chooseMove(g.moves, "expert", () => 0.5)!;
+    expect(choice.uci).toBe("c4f7");
+    expect(choice.score).toBeGreaterThan(90_000);
   });
 });

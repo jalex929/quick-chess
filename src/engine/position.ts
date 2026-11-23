@@ -62,7 +62,36 @@ interface Undo {
   castling: number;
   ep: number;
   halfmove: number;
+  hashLo: number;
+  hashHi: number;
 }
+
+/**
+ * Zobrist keys: a fixed random number for every (piece, square), for the side to move, the
+ * castling rights and the en passant square. XOR-ing the ones that apply gives a position a
+ * fingerprint that updates cheaply as moves are made. Two 32-bit halves keep collisions rare.
+ * Seeded, so fingerprints are the same on every run.
+ */
+function makeKeys(count: number, seed: number): Int32Array {
+  const out = new Int32Array(count);
+  let x = seed >>> 0 || 1;
+  for (let i = 0; i < count; i++) {
+    x ^= x << 13;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    out[i] = x | 0;
+  }
+  return out;
+}
+const Z_PIECE_LO = makeKeys(13 * 120, 0x9e3779b9);
+const Z_PIECE_HI = makeKeys(13 * 120, 0x85ebca6b);
+const Z_CASTLE_LO = makeKeys(16, 0xc2b2ae35);
+const Z_CASTLE_HI = makeKeys(16, 0x27d4eb2f);
+const Z_EP_LO = makeKeys(120, 0x165667b1);
+const Z_EP_HI = makeKeys(120, 0xd3a2646c);
+const Z_SIDE_LO = 0x5bd1e995 | 0;
+const Z_SIDE_HI = 0x1b873593 | 0;
+const pieceKey = (piece: number, sq: number) => (piece + 6) * 120 + sq;
 
 const PIECE_CHARS = " pnbrqk";
 
@@ -75,7 +104,43 @@ export class Position {
   ep = 0;
   halfmove = 0;
   kings = { 1: 0, [-1]: 0 } as Record<number, number>;
+  /** The position's fingerprint (see Zobrist keys above), kept up to date by make/unmake. */
+  hashLo = 0;
+  hashHi = 0;
   private history: Undo[] = [];
+
+  /** The fingerprint as one number (53 bits), handy as a Map or Set key. */
+  get key(): number {
+    return (this.hashHi & 0x1fffff) * 4294967296 + (this.hashLo >>> 0);
+  }
+
+  /** Works the fingerprint out from scratch (used on load, and by tests to check updates). */
+  computeHash(): [number, number] {
+    let lo = 0;
+    let hi = 0;
+    for (let sq = 21; sq <= 98; sq++) {
+      const piece = this.board[sq]!;
+      if (piece === EMPTY || piece === OFF) continue;
+      lo ^= Z_PIECE_LO[pieceKey(piece, sq)]!;
+      hi ^= Z_PIECE_HI[pieceKey(piece, sq)]!;
+    }
+    lo ^= Z_CASTLE_LO[this.castling]!;
+    hi ^= Z_CASTLE_HI[this.castling]!;
+    if (this.ep) {
+      lo ^= Z_EP_LO[this.ep]!;
+      hi ^= Z_EP_HI[this.ep]!;
+    }
+    if (this.side === -1) {
+      lo ^= Z_SIDE_LO;
+      hi ^= Z_SIDE_HI;
+    }
+    return [lo, hi];
+  }
+
+  private toggle(piece: number, sq: number) {
+    this.hashLo ^= Z_PIECE_LO[pieceKey(piece, sq)]!;
+    this.hashHi ^= Z_PIECE_HI[pieceKey(piece, sq)]!;
+  }
 
   static fromFen(fen: string): Position {
     const p = new Position();
@@ -106,6 +171,7 @@ export class Position {
       (castling?.includes("q") ? BQ : 0);
     p.ep = ep && ep !== "-" ? parseSquare(ep) : 0;
     p.halfmove = Number(halfmove ?? 0) || 0;
+    [p.hashLo, p.hashHi] = p.computeHash();
     return p;
   }
 
@@ -232,21 +298,49 @@ export class Position {
   make(m: PMove): boolean {
     const b = this.board;
     const us = this.side;
-    this.history.push({ move: m, castling: this.castling, ep: this.ep, halfmove: this.halfmove });
+    this.history.push({
+      move: m,
+      castling: this.castling,
+      ep: this.ep,
+      halfmove: this.halfmove,
+      hashLo: this.hashLo,
+      hashHi: this.hashHi,
+    });
     const piece = b[m.from]!;
-    b[m.to] = m.promo ? m.promo * us : piece;
+    const placed = m.promo ? m.promo * us : piece;
+    this.toggle(piece, m.from);
+    if (m.flag === EP) this.toggle(m.captured, m.to - 10 * us);
+    else if (m.captured) this.toggle(m.captured, m.to);
+    this.toggle(placed, m.to);
+    b[m.to] = placed;
     b[m.from] = EMPTY;
     if (m.flag === EP) b[m.to - 10 * us] = EMPTY;
     if (m.flag === CASTLE) {
       const kingside = m.to > m.from;
       const rookFrom = kingside ? m.from + 3 : m.from - 4;
       const rookTo = kingside ? m.from + 1 : m.from - 1;
+      this.toggle(b[rookFrom]!, rookFrom);
+      this.toggle(b[rookFrom]!, rookTo);
       b[rookTo] = b[rookFrom]!;
       b[rookFrom] = EMPTY;
     }
     if (Math.abs(piece) === KING) this.kings[us] = m.to;
+    this.hashLo ^= Z_CASTLE_LO[this.castling]!;
+    this.hashHi ^= Z_CASTLE_HI[this.castling]!;
     this.castling &= CASTLE_KEEP[m.from]! & CASTLE_KEEP[m.to]!;
+    this.hashLo ^= Z_CASTLE_LO[this.castling]!;
+    this.hashHi ^= Z_CASTLE_HI[this.castling]!;
+    if (this.ep) {
+      this.hashLo ^= Z_EP_LO[this.ep]!;
+      this.hashHi ^= Z_EP_HI[this.ep]!;
+    }
     this.ep = m.flag === DOUBLE ? m.from + 10 * us : 0;
+    if (this.ep) {
+      this.hashLo ^= Z_EP_LO[this.ep]!;
+      this.hashHi ^= Z_EP_HI[this.ep]!;
+    }
+    this.hashLo ^= Z_SIDE_LO;
+    this.hashHi ^= Z_SIDE_HI;
     this.halfmove = Math.abs(piece) === PAWN || m.captured ? 0 : this.halfmove + 1;
     this.side = -us;
     if (this.attacked(this.kings[us]!, -us)) {
@@ -277,6 +371,8 @@ export class Position {
     this.castling = u.castling;
     this.ep = u.ep;
     this.halfmove = u.halfmove;
+    this.hashLo = u.hashLo;
+    this.hashHi = u.hashHi;
   }
 
   /** Fully legal moves. */

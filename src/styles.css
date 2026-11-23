@@ -1778,3 +1778,41 @@ fieldset {
   background: var(--tone);
   box-shadow: 0 0 10px 2px rgba(var(--tone-rgb), 0.6);
 }
+
+/* A rating tag on each bot level: shown on every screen size (hints hide on phones). */
+.choice__tag {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--cyan);
+  letter-spacing: 0.02em;
+}
+
+/* Result first: the word sits on top, the log types out beneath it. */
+.terminal .terminal__banner {
+  margin: 0 0 6px;
+}
+
+.terminal__log {
+  margin: 0;
+  min-height: 4.5em;
+  font: inherit;
+  white-space: pre-wrap;
+}
+
+.choice__note {
+  margin: -2px 0 10px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+/* Phones: the five clock options sit in two rows of three so labels and tags fit. */
+@media (max-width: 860px) {
+  .choice--clock .choice__options {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .choice__note {
+    font-size: 13px;
+  }
+}

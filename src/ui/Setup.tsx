@@ -12,20 +12,24 @@ interface Props {
 /** One group of choices shown as a row of chunky buttons (radio buttons underneath). */
 function Choice<T extends string | null>({
   legend,
+  note,
   name,
   value,
   options,
   onChange,
 }: {
   legend: string;
+  /** A short line under the heading, shown on every screen size. */
+  note?: string;
   name: string;
   value: T;
-  options: { value: T; label: string; hint?: string }[];
+  options: { value: T; label: string; hint?: string; tag?: string }[];
   onChange: (v: T) => void;
 }) {
   return (
-    <fieldset className="choice">
+    <fieldset className={`choice choice--${name}`}>
       <legend className="choice__legend">{legend}</legend>
+      {note && <p className="choice__note">{note}</p>}
       <div className="choice__options">
         {options.map((o) => (
           <label key={String(o.value)} className="choice__option">
@@ -37,6 +41,7 @@ function Choice<T extends string | null>({
             />
             <span className="choice__box">
               <span className="choice__label">{o.label}</span>
+              {o.tag && <span className="choice__tag">{o.tag}</span>}
               {o.hint && <span className="choice__hint">{o.hint}</span>}
             </span>
           </label>
@@ -108,7 +113,12 @@ export function Setup({ settings, onChange, onStart }: Props) {
               legend="Bot level"
               name="level"
               value={settings.level}
-              options={BOT_LEVELS.map((l) => ({ value: l.id, label: l.label, hint: l.hint }))}
+              options={BOT_LEVELS.map((l) => ({
+                value: l.id,
+                label: l.label,
+                hint: l.hint,
+                tag: l.rating,
+              }))}
               onChange={(v) => set("level", v)}
             />
             <Choice
@@ -138,11 +148,17 @@ export function Setup({ settings, onChange, onStart }: Props) {
 
         <Choice
           legend="Clock"
+          note={'Minutes for each player. "+ 2" adds 2 seconds after every move you make.'}
           name="clock"
           value={settings.clock}
           options={[
-            { value: null, label: "None" },
-            ...TIME_CONTROLS.map((t) => ({ value: t.id as string | null, label: t.label })),
+            { value: null, label: "None", tag: "Casual", hint: "No clock, take your time" },
+            ...TIME_CONTROLS.map((t) => ({
+              value: t.id as string | null,
+              label: t.label,
+              tag: t.kind,
+              hint: t.hint,
+            })),
           ]}
           onChange={(v) => set("clock", v)}
         />

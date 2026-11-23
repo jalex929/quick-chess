@@ -51,6 +51,30 @@ describe("Position (bot move generator)", () => {
     }
   });
 
+  it("keeps its fingerprint right through every move, and back", () => {
+    const check = (p: Position, depth: number): void => {
+      expect([p.hashLo, p.hashHi]).toEqual(p.computeHash());
+      if (depth === 0) return;
+      for (const m of p.pseudoMoves()) {
+        if (!p.make(m)) continue;
+        check(p, depth - 1);
+        p.unmake();
+      }
+    };
+    for (const c of CASES) check(Position.fromFen(c.fen), 2);
+  });
+
+  it("gives transposed move orders the same fingerprint", () => {
+    const a = Position.fromFen(CASES[0]!.fen);
+    const b = Position.fromFen(CASES[0]!.fen);
+    const play = (p: Position, ucis: string[]) => {
+      for (const u of ucis) p.make(p.legalMoves().find((m) => moveToUci(m) === u)!);
+    };
+    play(a, ["g1f3", "g8f6", "b1c3"]);
+    play(b, ["b1c3", "g8f6", "g1f3"]);
+    expect(a.key).toBe(b.key);
+  });
+
   it("make then unmake restores the board exactly", () => {
     const p = Position.fromFen(CASES[1]!.fen);
     const before = Array.from(p.board).join();

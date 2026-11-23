@@ -832,19 +832,24 @@ function Terminal({
   const reduce =
     typeof window !== "undefined" &&
     !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  const [typed, setTyped] = useState(reduce ? full.length : 0);
+  // The result word lands first; the log starts typing under it once its glitch settles.
+  const [typed, setTyped] = useState(reduce ? full.length : -1);
   useEffect(() => {
     if (typed >= full.length) return;
-    const t = window.setTimeout(() => setTyped((n) => n + 1), full[typed] === "\n" ? 160 : 22);
+    const delay = typed < 0 ? 520 : full[typed] === "\n" ? 140 : 20;
+    const t = window.setTimeout(() => setTyped((n) => n + 1), delay);
     return () => window.clearTimeout(t);
   }, [typed, full]);
-  const done = typed >= full.length;
+  const shown = Math.max(0, typed);
+  const done = shown >= full.length;
   return (
-    <pre className={`terminal terminal--${tone}`} aria-hidden="true">
-      {full.slice(0, typed)}
-      {!done && <span className="terminal__cursor" />}
-      {done && <span className="terminal__banner">{banner}</span>}
-    </pre>
+    <div className={`terminal terminal--${tone}`} aria-hidden="true">
+      <span className="terminal__banner">{banner}</span>
+      <pre className="terminal__log">
+        {full.slice(0, shown)}
+        {typed >= 0 && !done && <span className="terminal__cursor" />}
+      </pre>
+    </div>
   );
 }
 

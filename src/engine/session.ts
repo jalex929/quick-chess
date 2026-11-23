@@ -63,7 +63,7 @@ export function loadSettings(): Settings {
   const s = read<Partial<Settings>>(SETTINGS_KEY) ?? {};
   return {
     mode: s.mode === "pass" ? "pass" : "bot",
-    level: s.level === "medium" || s.level === "hard" ? s.level : "easy",
+    level: s.level === "medium" || s.level === "hard" || s.level === "expert" ? s.level : "easy",
     side: isColor(s.side) || s.side === "random" ? s.side : "w",
     clock: typeof s.clock === "string" ? s.clock : null,
     passView: s.passView === "face" ? "face" : "flip",

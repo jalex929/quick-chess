@@ -4,6 +4,10 @@ import type { Color } from "./game";
 export interface TimeControl {
   id: string;
   label: string;
+  /** Plain-language meaning, for anyone new to chess clocks. */
+  hint: string;
+  /** The usual name for this pace of game. */
+  kind: "Blitz" | "Rapid";
   /** Starting time per side, in ms. */
   base: number;
   /** Added after each of your moves, in ms. */
@@ -11,10 +15,31 @@ export interface TimeControl {
 }
 
 export const TIME_CONTROLS: TimeControl[] = [
-  { id: "3+2", label: "3 + 2", base: 3 * 60_000, increment: 2_000 },
-  { id: "5+0", label: "5 min", base: 5 * 60_000, increment: 0 },
-  { id: "10+0", label: "10 min", base: 10 * 60_000, increment: 0 },
-  { id: "15+10", label: "15 + 10", base: 15 * 60_000, increment: 10_000 },
+  {
+    id: "3+2",
+    label: "3 + 2",
+    hint: "3 min each, +2 sec per move",
+    kind: "Blitz",
+    base: 3 * 60_000,
+    increment: 2_000,
+  },
+  { id: "5+0", label: "5 min", hint: "5 min each", kind: "Blitz", base: 5 * 60_000, increment: 0 },
+  {
+    id: "10+0",
+    label: "10 min",
+    hint: "10 min each",
+    kind: "Rapid",
+    base: 10 * 60_000,
+    increment: 0,
+  },
+  {
+    id: "15+10",
+    label: "15 + 10",
+    hint: "15 min each, +10 sec per move",
+    kind: "Rapid",
+    base: 15 * 60_000,
+    increment: 10_000,
+  },
 ];
 
 export function timeControl(id: string | null): TimeControl | null {
