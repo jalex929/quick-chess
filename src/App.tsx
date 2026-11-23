@@ -341,7 +341,7 @@ export function App() {
     // Long enough to watch the king fall (or the board freeze) before the card covers it.
     const t = window.setTimeout(
       () => setShowResult(true),
-      outcome.kind === "checkmate" ? 2000 : 1700,
+      outcome.kind === "checkmate" ? 1300 : 1500,
     );
     return () => window.clearTimeout(t);
   }, [over]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -567,70 +567,30 @@ export function App() {
               </div>
             )}
             {over && showResult && (
-              <div className="board-overlay board-overlay--result">
-                <div
-                  className={`card card--${endTone}`}
-                  role="dialog"
-                  aria-labelledby="result-title"
+              <section
+                className={`result-hud result-hud--${endTone}`}
+                aria-labelledby="result-title"
+              >
+                <Terminal lines={endLines} banner={endBanner} tone={endTone} />
+                <h2 id="result-title" className="result-hud__title">
+                  {mode === "bot" && "winner" in outcome
+                    ? outcome.winner === human
+                      ? "You win!"
+                      : "The bot wins"
+                    : endTone === "draw"
+                      ? (DRAW_NAMES[outcome.kind] ?? "Draw")
+                      : result.title}
+                </h2>
+                <p className="result-hud__text">{result.detail}</p>
+                <button
+                  type="button"
+                  className="result-hud__close"
+                  onClick={() => setShowResult(false)}
+                  aria-label="Hide result"
                 >
-                  <Terminal lines={endLines} banner={endBanner} tone={endTone} />
-                  <h2 id="result-title" className="card__title">
-                    {mode === "bot" && "winner" in outcome
-                      ? outcome.winner === human
-                        ? "You win!"
-                        : "The bot wins"
-                      : endTone === "draw"
-                        ? (DRAW_NAMES[outcome.kind] ?? "Draw")
-                        : result.title}
-                  </h2>
-                  <p className="card__text">{result.detail}</p>
-                  <div className="card__actions">
-                    <button
-                      type="button"
-                      className="button button--primary"
-                      onClick={() => startGame(session.settings)}
-                      autoFocus
-                    >
-                      Play again
-                    </button>
-                    <button type="button" className="button" onClick={() => setSession(null)}>
-                      Main menu
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    className="button button--gif"
-                    onClick={() => void shareGif()}
-                    disabled={gifState === "making"}
-                    aria-describedby="gif-note"
-                  >
-                    {gifState === "making"
-                      ? "Making GIF…"
-                      : gifState === "downloaded"
-                        ? "GIF saved ✓"
-                        : gifState === "shared"
-                          ? "Shared ✓"
-                          : "Share GIF"}
-                  </button>
-                  <p id="gif-note" className="card__note">
-                    {gifState === "failed"
-                      ? "Couldn't make the GIF on this device."
-                      : `An animated replay of the last ${GIF_PLIES} moves.`}
-                  </p>
-                  <div className="card__actions card__actions--quiet">
-                    <button type="button" className="link-button" onClick={() => void copyPgn()}>
-                      {copied ? "Copied!" : "Copy game (PGN)"}
-                    </button>
-                    <button
-                      type="button"
-                      className="link-button"
-                      onClick={() => setShowResult(false)}
-                    >
-                      See the board
-                    </button>
-                  </div>
-                </div>
-              </div>
+                  ×
+                </button>
+              </section>
             )}
           </div>
           <PlayerBar
@@ -677,6 +637,53 @@ export function App() {
                 Decline
               </button>
             </div>
+          ) : over ? (
+            <div className="end-actions" role="group" aria-label="Game over">
+              <div className="end-actions__row">
+                <button
+                  type="button"
+                  className="button button--primary"
+                  onClick={() => startGame(session.settings)}
+                >
+                  Play again
+                </button>
+                <button type="button" className="button" onClick={() => setSession(null)}>
+                  Main menu
+                </button>
+              </div>
+              <button
+                type="button"
+                className="button button--gif"
+                onClick={() => void shareGif()}
+                disabled={gifState === "making"}
+                aria-describedby="gif-note"
+              >
+                {gifState === "making"
+                  ? "Making GIF…"
+                  : gifState === "downloaded"
+                    ? "GIF saved ✓"
+                    : gifState === "shared"
+                      ? "Shared ✓"
+                      : "Share GIF"}
+              </button>
+              <p id="gif-note" className="card__note">
+                {gifState === "failed"
+                  ? "Couldn't make the GIF on this device."
+                  : `An animated replay of the last ${GIF_PLIES} moves.`}
+              </p>
+              <div className="end-actions__row">
+                <button type="button" className="link-button" onClick={() => void copyPgn()}>
+                  {copied ? "Copied!" : "Copy game (PGN)"}
+                </button>
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => setShowResult((v) => !v)}
+                >
+                  {showResult ? "Hide result" : "Show result"}
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="controls">
               {mode === "bot" && (
@@ -718,20 +725,6 @@ export function App() {
               >
                 Resign
               </button>
-              {over && !showResult && (
-                <button
-                  type="button"
-                  className="button button--primary"
-                  onClick={() => setShowResult(true)}
-                >
-                  Result
-                </button>
-              )}
-              {over && (
-                <button type="button" className="button" onClick={() => setSession(null)}>
-                  Main menu
-                </button>
-              )}
             </div>
           )}
           <MoveList san={game.san()} />

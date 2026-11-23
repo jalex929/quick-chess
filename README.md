@@ -16,9 +16,12 @@ clock. No accounts; an unfinished game survives a reload.
 - Tap-tap or drag to move, legal-move markers, last move and check highlighted with shape as
   well as color. Keyboard play (arrow keys, Enter) with spoken square names and moves.
 - Move list; copy the game as PGN at the end.
-- Motion: moves slide, captures glitch apart, a king in check glitches, and checkmate
-  "derezzes" the king into falling pixel blocks under a red scan line. Reduced motion turns
-  this off.
+- Motion: moves slide, captures glitch apart, a king in check glitches. At checkmate the king
+  glitches out like a capture (green if you won, red if you lost) and its ghost keeps
+  crackling; draws freeze the board in amber. The result appears as a band across the board
+  (hide it to study the final position). Reduced motion turns this off.
+- Share GIF: an animated replay of the last 10 moves, made in the browser, ending on
+  VICTORY / DEFEAT / DRAW. Recorded examples in `docs/media/`.
 - Optional sound effects, synthesized in the browser (no audio files); off by default.
 
 ## How it's built

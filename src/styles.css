@@ -1204,110 +1204,6 @@ fieldset {
   }
 }
 
-/* ---------- Derez (checkmate) ---------- */
-
-.derez {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.derez__glitch,
-.derez__block {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-}
-
-/* Stage 1: a hard glitch. Torn slices, split colors, jumps. */
-.derez__glitch {
-  animation: hard-glitch 560ms steps(1, end) forwards;
-}
-
-.derez__glitch .piece {
-  filter: drop-shadow(-3px 0 0 rgba(255, 46, 151, 0.95))
-    drop-shadow(3px 0 0 rgba(46, 242, 255, 0.95));
-}
-
-@keyframes hard-glitch {
-  0% {
-    clip-path: inset(0 0 0 0);
-    transform: none;
-  }
-  10% {
-    clip-path: inset(0 0 62% 0);
-    transform: translate(-9%, 0);
-  }
-  20% {
-    clip-path: inset(30% 0 30% 0);
-    transform: translate(10%, 0) skewX(16deg);
-  }
-  30% {
-    clip-path: inset(58% 0 0 0);
-    transform: translate(-6%, 3%);
-  }
-  40% {
-    clip-path: inset(0 0 0 0);
-    transform: scale(1.12, 0.86);
-  }
-  50% {
-    clip-path: inset(12% 0 44% 0);
-    transform: translate(12%, -2%) skewX(-20deg);
-  }
-  62% {
-    clip-path: inset(46% 0 18% 0);
-    transform: translate(-12%, 0);
-  }
-  74% {
-    clip-path: inset(0 0 0 0);
-    transform: translate(3%, 0) scaleX(1.25);
-  }
-  86% {
-    clip-path: inset(20% 0 20% 0);
-    transform: scaleY(0.4);
-  }
-  100% {
-    opacity: 0;
-    clip-path: inset(50% 0 50% 0);
-  }
-}
-
-/* Stage 2: pixel blocks appear as one piece, then drift and drop away in a stepped dissolve. */
-.derez__block {
-  opacity: 0;
-  clip-path: inset(var(--top) var(--right) var(--bottom) var(--left));
-  animation:
-    derez-show 1ms 560ms forwards,
-    derez-fall 620ms calc(600ms + var(--delay)) steps(5, end) forwards;
-}
-
-.derez__block .piece {
-  filter: drop-shadow(0 0 4px rgba(var(--mate-rgb), 0.9));
-}
-
-@keyframes derez-show {
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes derez-fall {
-  0% {
-    opacity: 1;
-    transform: none;
-  }
-  35% {
-    opacity: 1;
-    transform: translate(var(--drift), 0);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(var(--drift), var(--fall));
-  }
-}
-
 /* A red scan line sweeps the board as the system goes down. */
 .board__sweep {
   position: absolute;
@@ -1400,12 +1296,8 @@ fieldset {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .derez__glitch,
   .board__sweep {
     display: none;
-  }
-  .derez__block {
-    opacity: 0.35;
   }
 }
 
@@ -1644,47 +1536,6 @@ fieldset {
   }
 }
 
-/* The corruption: live random pixels on a tiny canvas, bleeding past the square. */
-.infection {
-  position: absolute;
-  inset: -40%;
-  pointer-events: none;
-  z-index: 5;
-  opacity: 0;
-  animation: infect-in 700ms 1300ms steps(4, end) forwards;
-}
-
-.infection canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 0 4px rgba(255, 77, 94, 0.8));
-}
-
-.infection--win canvas {
-  filter: drop-shadow(0 0 4px rgba(200, 255, 60, 0.75));
-}
-
-/* Scanlines cut through the lit pixels only (a mask), so the effect has no visible box. */
-.infection canvas {
-  -webkit-mask-image: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.55) 0 1px, #000 1px 3px);
-  mask-image: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.55) 0 1px, #000 1px 3px);
-}
-
-@keyframes infect-in {
-  to {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .infection {
-    animation: none;
-    opacity: 1;
-  }
-}
-
 .button--gif {
   width: 100%;
   border-color: var(--pink);
@@ -1701,4 +1552,177 @@ fieldset {
   margin: -6px 0 0;
   color: var(--muted);
   font-size: 13px;
+}
+
+/* ---------- King falls (checkmate): same language as captures ---------- */
+
+.kingfall {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  --tone: var(--danger);
+  --tone-rgb: 255, 77, 94;
+}
+
+.kingfall--win {
+  --tone: var(--acid);
+  --tone-rgb: 200, 255, 60;
+}
+
+/* The capture glitch, slower, glowing in the ending's color. */
+.captured-ghost--king {
+  animation-duration: 1000ms;
+}
+
+.captured-ghost--king .piece {
+  filter: drop-shadow(0 0 6px rgba(var(--tone-rgb), 0.95));
+}
+
+.captured-ghost--king .captured-ghost__echo {
+  animation-duration: 1000ms;
+}
+
+/* What stays: a faint ghost of the king. */
+.kingfall__ghost {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  animation: ghost-in 400ms 950ms steps(3, end) forwards;
+}
+
+.kingfall__ghost .piece {
+  filter: grayscale(0.6) drop-shadow(0 0 5px rgba(var(--tone-rgb), 0.8));
+}
+
+@keyframes ghost-in {
+  to {
+    opacity: 0.22;
+  }
+}
+
+/* A crackle: the ghost tears into a slice, shoved sideways, with a color split. */
+.kingfall__ghost--tear {
+  animation: none;
+  opacity: 0.75;
+  clip-path: inset(var(--cut-top) 0 var(--cut-bottom) 0);
+  transform: translateX(var(--shift));
+}
+
+.kingfall__ghost--tear .piece {
+  filter: drop-shadow(-3px 0 0 rgba(255, 46, 151, 0.9)) drop-shadow(3px 0 0 rgba(46, 242, 255, 0.9))
+    drop-shadow(0 0 6px rgba(var(--tone-rgb), 0.9));
+}
+
+.kingfall__static {
+  position: absolute;
+  height: 2px;
+  background: var(--tone);
+  box-shadow: 0 0 6px rgba(var(--tone-rgb), 0.9);
+  opacity: 0.85;
+}
+
+/* ---------- Result HUD: on the board, not a separate screen ---------- */
+
+.result-hud {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
+  display: grid;
+  gap: 8px;
+  padding: 16px 20px 18px;
+  background: rgba(11, 7, 22, 0.8);
+  border-top: 2px solid var(--hud);
+  border-bottom: 2px solid var(--hud);
+  box-shadow: 0 0 30px rgba(var(--hud-rgb), 0.25);
+  --hud: var(--danger);
+  --hud-rgb: 255, 77, 94;
+  animation: hud-in 360ms steps(4, end) both;
+}
+
+.result-hud--win {
+  --hud: var(--acid);
+  --hud-rgb: 200, 255, 60;
+}
+
+.result-hud--draw {
+  --hud: var(--amber);
+  --hud-rgb: 255, 182, 39;
+}
+
+@keyframes hud-in {
+  from {
+    clip-path: inset(48% 0 48% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.result-hud .terminal {
+  min-height: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+.result-hud__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.result-hud__text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.result-hud__close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.result-hud__close:hover {
+  color: var(--text);
+}
+
+.end-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.end-actions__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.end-actions__row .button {
+  flex: 1 1 auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kingfall__ghost {
+    opacity: 0.22;
+  }
+  .result-hud {
+    animation: none;
+  }
 }

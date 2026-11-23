@@ -101,10 +101,10 @@ test("checkmate ends the game with a result card and PGN", async ({ page }) => {
   await move(page, "e7", "e5");
   await move(page, "g2", "g4");
   await move(page, "d8", "h4");
-  const card = page.getByRole("dialog");
-  await expect(card.getByRole("heading")).toHaveText("Black wins");
-  await expect(card).toContainText("Checkmate.");
-  await card.getByRole("button", { name: "See the board" }).click();
+  const hud = page.getByRole("region", { name: "Black wins" });
+  await expect(hud).toContainText("Checkmate.");
+  await page.getByRole("button", { name: "Hide result" }).first().click();
+  await expect(hud).toHaveCount(0);
   await expect(sq(page, "e1")).toHaveAttribute("aria-label", /in check/);
   // Back to the main menu from the finished game.
   await page.getByRole("button", { name: "Main menu" }).click();
@@ -151,7 +151,7 @@ test("resign asks first, then ends the game", async ({ page }) => {
   await page.getByRole("button", { name: "Keep playing" }).click();
   await page.getByRole("button", { name: "Resign" }).click();
   await page.getByRole("button", { name: "Yes, resign" }).click();
-  await expect(page.getByRole("dialog").getByRole("heading")).toHaveText("The bot wins");
+  await expect(page.getByRole("heading", { name: "The bot wins" })).toBeVisible();
 });
 
 test("nothing scrolls sideways and Start is on screen", async ({ page }) => {

@@ -296,10 +296,7 @@ export function Board({
                     </span>
                   )}
                   {piece && !hidden && mated === piece.color && piece.type === "k" ? (
-                    <>
-                      <Derez color={piece.color} />
-                      <Infection tone={mateTone} />
-                    </>
+                    <KingFall color={piece.color} tone={mateTone} />
                   ) : piece && !hidden ? (
                     <span
                       key={slide ? `s${animation!.key}` : "still"}
@@ -399,139 +396,79 @@ function slideOffset(from: Square, to: Square, orientation: Color): React.CSSPro
   } as React.CSSProperties;
 }
 
-const DEREZ_GRID = 7;
-
-/**
- * The mated king "derezzes": a hard glitch, then it breaks into a grid of pixel blocks that
- * drift and drop away one by one, leaving a corrupted square. Pure CSS; the order the blocks
- * go in is scrambled but fixed, so it looks random without changing between renders.
- */
-function Derez({ color }: { color: Color }) {
-  const cells = [];
-  const n = DEREZ_GRID;
-  const size = 100 / n;
-  for (let i = 0; i < n * n; i++) {
-    const row = Math.floor(i / n);
-    const col = i % n;
-    const order = (i * 23 + 11) % (n * n); // a fixed shuffle of 0..48
-    const style = {
-      "--top": `${row * size}%`,
-      "--right": `${100 - (col + 1) * size}%`,
-      "--bottom": `${100 - (row + 1) * size}%`,
-      "--left": `${col * size}%`,
-      "--delay": `${Math.round((order / (n * n)) * 650)}ms`,
-      "--drift": `${((order % 5) - 2) * 6}%`,
-      "--fall": `${40 + (order % 4) * 25}%`,
-    } as React.CSSProperties;
-    cells.push(
-      <span key={i} className="derez__block" style={style}>
-        <PieceIcon type="k" color={color} className="piece" />
-      </span>,
-    );
-  }
-  return (
-    <span className="derez" aria-hidden="true">
-      <span className="derez__glitch">
-        <PieceIcon type="k" color={color} className="piece" />
-      </span>
-      {cells}
-    </span>
-  );
+interface Crackle {
+  /** Slice of the ghost that shows during the tear (inset top / bottom, %). */
+  top: number;
+  bottom: number;
+  shift: number;
+  /** Static lines across the square (top %, and a sideways nudge). */
+  lines: { y: number; dx: number; w: number }[];
 }
 
-/** Infection canvas: 10 pixels per square, covering the square plus 0.4 of a square around it. */
-const INFECTION_PX = 18;
-
 /**
- * Where the king fell, the square stays infected. Drawn on a tiny canvas scaled up so each
- * pixel is a crisp tenth of a square: a hard-edged mass in the ending's color that wanders
- * and grows at random past the square's edges, with pink/cyan split pixels and sideways
- * slice tears, the same glitch language as captures and the derez. Never loops.
+ * The mated king leaves the board the way captured pieces do (torn slices and a split-color
+ * echo), slower and in the ending's color. A faint ghost stays on its square and crackles at
+ * random moments: a short slice tear and a few flickering static lines.
  */
-function Infection({ tone }: { tone: "win" | "lose" }) {
-  const ref = useRef<HTMLCanvasElement>(null);
+function KingFall({ color, tone }: { color: Color; tone: "win" | "lose" }) {
+  const [crackle, setCrackle] = useState<Crackle | null>(null);
   useEffect(() => {
-    const canvas = ref.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
-    const n = INFECTION_PX;
-    canvas.width = n;
-    canvas.height = n;
-    const main: [number, number, number] = tone === "win" ? [200, 255, 60] : [255, 77, 94];
-    const pink: [number, number, number] = [255, 46, 151];
-    const cyan: [number, number, number] = [46, 242, 255];
-    const levels = [0.38, 0.7, 1];
-    // Blobs in canvas units; the square is the middle (4..14).
-    const blobs = Array.from({ length: 6 }, (_, i) => ({
-      x: i === 0 ? 9 : 5 + Math.random() * 8,
-      y: i === 0 ? 9 : 5 + Math.random() * 8,
-      r: i === 0 ? 4.5 : 1 + Math.random() * 2,
-    }));
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const cells = new Uint8Array(n * n);
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     let timer = 0;
-    const draw = () => {
-      for (const [i, blob] of blobs.entries()) {
-        if (i === 0) {
-          blob.r = 4.2 + Math.random() * 1.1;
-          continue;
-        }
-        // Jumps rather than glides: whole pixels at a time.
-        if (Math.random() < 0.5)
-          blob.x = Math.min(13, Math.max(5, blob.x + Math.round((Math.random() - 0.5) * 3)));
-        if (Math.random() < 0.5)
-          blob.y = Math.min(13, Math.max(5, blob.y + Math.round((Math.random() - 0.5) * 3)));
-        if (Math.random() < 0.3)
-          blob.r = Math.min(3, Math.max(1, blob.r + (Math.random() - 0.5) * 2));
-      }
-      // Which cells are infected this frame, and how brightly (0 = clear).
-      for (let y = 0; y < n; y++) {
-        for (let x = 0; x < n; x++) {
-          let inside = 0;
-          for (const blob of blobs) {
-            const d = Math.max(Math.abs(x + 0.5 - blob.x), Math.abs(y + 0.5 - blob.y) * 1.1);
-            const edge = blob.r + (Math.random() - 0.5) * 1.4; // a ragged, blocky edge
-            if (d < edge) inside = Math.max(inside, d < edge - 2 ? 3 : 2);
-          }
-          // Inside the mass, some pixels drop out; at the edge, more do.
-          const keep =
-            inside === 3
-              ? Math.random() < 0.88
-              : inside === 2
-                ? Math.random() < 0.55
-                : Math.random() < 0.006;
-          cells[y * n + x] = keep ? 1 + Math.floor(Math.random() * (inside === 3 ? 3 : 2)) : 0;
-        }
-      }
-      ctx.clearRect(0, 0, n, n);
-      for (let y = 0; y < n; y++) {
-        for (let x = 0; x < n; x++) {
-          const level = cells[y * n + x]!;
-          if (!level) continue;
-          const roll = Math.random();
-          const [r, g, b] = roll < 0.07 ? pink : roll < 0.14 ? cyan : main;
-          ctx.fillStyle = `rgba(${r},${g},${b},${levels[level - 1]})`;
-          ctx.fillRect(x, y, 1, 1);
-        }
-      }
-      // Slice tears: a band of rows shoved sideways, like the capture glitch.
-      const tears = Math.random() < 0.45 ? 1 + Math.floor(Math.random() * 2) : 0;
-      for (let t = 0; t < tears; t++) {
-        const y = Math.floor(Math.random() * n);
-        const h = 1 + Math.floor(Math.random() * 2);
-        const dx = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 3));
-        const band = ctx.getImageData(0, y, n, h);
-        ctx.clearRect(0, y, n, h);
-        ctx.putImageData(band, dx, y);
-      }
-      if (!reduce) timer = window.setTimeout(draw, 55 + Math.random() * 140);
+    const rand = (a: number, b: number) => a + Math.random() * (b - a);
+    const burst = (left: number) => {
+      const top = Math.round(rand(0, 55));
+      setCrackle({
+        top,
+        bottom: Math.round(rand(0, 85 - top)),
+        shift: Math.round(rand(-14, 14)),
+        lines: Array.from({ length: 1 + Math.floor(Math.random() * 3) }, () => ({
+          y: Math.round(rand(8, 92)),
+          dx: Math.round(rand(-12, 12)),
+          w: Math.round(rand(35, 90)),
+        })),
+      });
+      timer = window.setTimeout(
+        () => {
+          setCrackle(null);
+          // Sometimes a stutter of two or three tears, then quiet for a random while.
+          timer =
+            left > 0
+              ? window.setTimeout(() => burst(left - 1), rand(40, 110))
+              : window.setTimeout(
+                  () => burst(Math.random() < 0.4 ? Math.floor(rand(1, 3)) : 0),
+                  rand(500, 2400),
+                );
+        },
+        rand(60, 190),
+      );
     };
-    draw();
+    timer = window.setTimeout(() => burst(2), 1150);
     return () => window.clearTimeout(timer);
-  }, [tone]);
+  }, []);
+  const style = crackle
+    ? ({
+        "--cut-top": `${crackle.top}%`,
+        "--cut-bottom": `${crackle.bottom}%`,
+        "--shift": `${crackle.shift}%`,
+      } as React.CSSProperties)
+    : undefined;
   return (
-    <span className={`infection infection--${tone}`} aria-hidden="true">
-      <canvas ref={ref} />
+    <span className={`kingfall kingfall--${tone}`} aria-hidden="true">
+      <span className="captured-ghost captured-ghost--king">
+        <PieceIcon type="k" color={color} className="piece" />
+        <PieceIcon type="k" color={color} className="piece captured-ghost__echo" />
+      </span>
+      <span className={`kingfall__ghost ${crackle ? "kingfall__ghost--tear" : ""}`} style={style}>
+        <PieceIcon type="k" color={color} className="piece" />
+      </span>
+      {crackle?.lines.map((l, i) => (
+        <span
+          key={i}
+          className="kingfall__static"
+          style={{ top: `${l.y}%`, left: `${(100 - l.w) / 2 + l.dx}%`, width: `${l.w}%` }}
+        />
+      ))}
     </span>
   );
 }
