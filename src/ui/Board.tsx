@@ -397,6 +397,36 @@ function slideOffset(from: Square, to: Square, orientation: Color): React.CSSPro
   } as React.CSSProperties;
 }
 
+interface Glow {
+  top: number;
+  bottom: number;
+  shift: number;
+  o: number;
+  /** Thick, soft bands of color (top, height, left, width and strength, in % of the square). */
+  bands: { y: number; h: number; x: number; w: number; a: number }[];
+}
+
+/**
+ * A fresh glow: thick horizontal bands, widest near the middle of the square, each nudged
+ * sideways; the same shapes as the static lines and slice tears, but softer and broader.
+ */
+function newGlow(top: number, bottom: number, shift: number, o: number): Glow {
+  const r = (a: number, b: number) => a + Math.random() * (b - a);
+  const count = 4 + Math.floor(Math.random() * 4);
+  return {
+    top,
+    bottom,
+    shift,
+    o,
+    bands: Array.from({ length: count }, () => {
+      const y = r(8, 84);
+      const fromMiddle = Math.abs(y + 6 - 50) / 50; // 0 in the middle, 1 at the edge
+      const w = r(55, 105) * (1 - fromMiddle * 0.55);
+      return { y, h: r(6, 16), x: 50 - w / 2 + r(-12, 12), w, a: r(0.18, 0.42) };
+    }),
+  };
+}
+
 interface Crackle {
   /** Slice of the ghost that shows during the tear (inset top / bottom, %). */
   top: number;
@@ -414,7 +444,7 @@ interface Crackle {
 function KingFall({ color, tone }: { color: Color; tone: "win" | "lose" }) {
   const [crackle, setCrackle] = useState<Crackle | null>(null);
   /** The glow behind the king: sheared into a slice during a tear, flickering between. */
-  const [glow, setGlow] = useState({ top: 0, bottom: 0, shift: 0, o: 0.9 });
+  const [glow, setGlow] = useState<Glow>(() => newGlow(0, 0, 0, 0.9));
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     let timer = 0;
@@ -429,12 +459,14 @@ function KingFall({ color, tone }: { color: Color; tone: "win" | "lose" }) {
       const top = Math.round(rand(0, 60));
       // The glow tears on its own slice (not the king's), or sometimes just jumps sideways.
       const glowTop = Math.random() < 0.3 ? 0 : Math.round(rand(0, 55));
-      setGlow({
-        top: glowTop,
-        bottom: glowTop === 0 ? 0 : Math.round(rand(0, 85 - glowTop)),
-        shift: Math.round(rand(-18, 18)),
-        o: rand(0.55, 1),
-      });
+      setGlow(
+        newGlow(
+          glowTop,
+          glowTop === 0 ? 0 : Math.round(rand(0, 85 - glowTop)),
+          Math.round(rand(-18, 18)),
+          rand(0.55, 1),
+        ),
+      );
       setCrackle({
         top,
         // Never more than about 60% of the king at once, so it always reads as broken.
@@ -449,9 +481,17 @@ function KingFall({ color, tone }: { color: Color; tone: "win" | "lose" }) {
       timer = window.setTimeout(
         () => {
           setCrackle(null);
-          setGlow({ top: 0, bottom: 0, shift: Math.round(rand(-3, 3)), o: rand(0.4, 0.95) });
+          setGlow(newGlow(0, 0, Math.round(rand(-3, 3)), rand(0.4, 0.95)));
           const gap = Math.random() < 0.12 ? rand(250, 600) : rand(25, 140);
-          timer = window.setTimeout(burst, gap);
+          // Even in a longer pause the glow keeps flickering.
+          if (gap > 200) {
+            timer = window.setTimeout(() => {
+              setGlow(newGlow(0, 0, Math.round(rand(-3, 3)), rand(0.4, 0.95)));
+              timer = window.setTimeout(burst, gap / 2);
+            }, gap / 2);
+          } else {
+            timer = window.setTimeout(burst, gap);
+          }
         },
         rand(50, 170),
       );
@@ -478,7 +518,21 @@ function KingFall({ color, tone }: { color: Color; tone: "win" | "lose" }) {
             "--glow-o": glow.o,
           } as React.CSSProperties
         }
-      />
+      >
+        {glow.bands.map((b, i) => (
+          <span
+            key={i}
+            className="kingfall__band"
+            style={{
+              top: `${b.y}%`,
+              height: `${b.h}%`,
+              left: `${b.x}%`,
+              width: `${b.w}%`,
+              opacity: b.a,
+            }}
+          />
+        ))}
+      </span>
       <span className="captured-ghost captured-ghost--king">
         <PieceIcon type="k" color={color} className="piece" />
         <PieceIcon type="k" color={color} className="piece captured-ghost__echo" />

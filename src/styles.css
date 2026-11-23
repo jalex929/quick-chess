@@ -1767,13 +1767,14 @@ fieldset {
 .kingfall__glow {
   position: absolute;
   inset: 0;
-  background: radial-gradient(
-    circle,
-    rgba(var(--tone-rgb), 0.9) 0%,
-    rgba(var(--tone-rgb), 0.25) 60%,
-    transparent 80%
-  );
+  /* The splotches themselves are set inline, re-randomized on every tear and flicker. */
   opacity: var(--glow-o, 0.9);
   clip-path: inset(var(--glow-top, 0%) 0 var(--glow-bottom, 0%) 0);
   transform: translateX(var(--glow-shift, 0%));
+}
+
+.kingfall__band {
+  position: absolute;
+  background: var(--tone);
+  box-shadow: 0 0 10px 2px rgba(var(--tone-rgb), 0.6);
 }
