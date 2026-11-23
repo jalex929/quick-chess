@@ -1,6 +1,6 @@
 # Working in quick-chess
 
-Read `README.md` and `docs/decisions.md` first.
+Read `README.md` and `DECISIONS.md` first.
 
 - Rules shown to the player come from chess.js via `src/engine/game.ts`. The bot uses its own
   fast generator in `position.ts`; any change there must keep the perft tests passing.

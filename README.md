@@ -7,7 +7,7 @@ clock. No accounts; an unfinished game survives a reload.
 
 - **vs Bot** at four levels aimed at ~400 / ~800 / ~1200 / 1800+ ratings (Easy, Medium, Hard,
   Expert), as White, Black or random. Undo in untimed games. Ratings are targets; the levels are
-  checked against each other with `scripts/ladder.ts` (see `docs/decisions.md`, D4).
+  checked against each other with `scripts/ladder.ts` (see [DECISIONS.md](DECISIONS.md)).
 - **Pass & play**: the board turns for whoever's move it is, or stays put for face-to-face play
   (the far side's pieces and clock are drawn upside down).
 - **Clocks**: none (casual), 3 + 2 and 5 min (blitz), 10 min and 15 + 10 (rapid); "+ 2" adds
@@ -54,6 +54,10 @@ npm run test:e2e   # Playwright, desktop Chrome + Pixel 7 (builds first: npm run
   bot reply and undo, checkmate card, promotion picker, resume after reload, clocks and pause,
   resign, no sideways scroll.
 - Not tested: Safari, Firefox, real phones, screen readers by hand.
+
+## Decisions
+
+**[DECISIONS.md](DECISIONS.md)** walks through what was decided and why, and who made each call.
 
 ## License
 
