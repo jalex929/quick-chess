@@ -25,6 +25,9 @@ clock. No accounts; an unfinished game survives a reload.
 - Share GIF: an animated replay of the last 10 moves, made in the browser, ending on
   VICTORY / DEFEAT / DRAW. Recorded examples in `docs/media/`.
 - Optional sound effects, synthesized in the browser (no audio files); off by default.
+- Anonymous usage counts on the live site only (no moves, names or fingerprints; skipped with
+  Do Not Track or Global Privacy Control). They go to a small receiver in Supabase, see
+  [`supabase/README.md`](supabase/README.md).
 
 ## How it's built
 
