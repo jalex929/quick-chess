@@ -1,6 +1,7 @@
 import { BOT_LEVELS } from "../engine/bot";
 import { TIME_CONTROLS } from "../engine/clock";
-import type { Settings } from "../engine/session";
+import type { PieceFacing, Settings } from "../engine/session";
+import { track } from "../telemetry";
 import { PieceIcon } from "./Pieces";
 
 interface Props {
@@ -23,7 +24,7 @@ function Choice<T extends string | null>({
   note?: string;
   name: string;
   value: T;
-  options: { value: T; label: string; hint?: string; tag?: string }[];
+  options: { value: T; label: string; hint?: string; tag?: string; art?: React.ReactNode }[];
   onChange: (v: T) => void;
 }) {
   return (
@@ -40,6 +41,7 @@ function Choice<T extends string | null>({
               onChange={() => onChange(o.value)}
             />
             <span className="choice__box">
+              {o.art}
               <span className="choice__label">{o.label}</span>
               {o.tag && <span className="choice__tag">{o.tag}</span>}
               {o.hint && <span className="choice__hint">{o.hint}</span>}
@@ -52,8 +54,10 @@ function Choice<T extends string | null>({
 }
 
 export function Setup({ settings, onChange, onStart }: Props) {
-  const set = <K extends keyof Settings>(key: K, value: Settings[K]) =>
+  const set = <K extends keyof Settings>(key: K, value: Settings[K]) => {
+    track("setup_change", { field: key, value: value as string | null });
     onChange({ ...settings, [key]: value });
+  };
 
   return (
     <main className="setup">
@@ -134,16 +138,40 @@ export function Setup({ settings, onChange, onStart }: Props) {
             />
           </>
         ) : (
-          <Choice
-            legend="Board"
-            name="passView"
-            value={settings.passView}
-            options={[
-              { value: "flip", label: "Turns each move", hint: "Pass it across" },
-              { value: "face", label: "Stays put", hint: "Sit face to face" },
-            ]}
-            onChange={(v) => set("passView", v)}
-          />
+          <>
+            <Choice
+              legend="Board"
+              note="Spins: hand the device over after each move. Stays put: lay it flat and sit across from each other."
+              name="passView"
+              value={settings.passView}
+              options={[
+                {
+                  value: "flip",
+                  label: "Spins each move",
+                  hint: "Whoever's turn it is sees their side at the bottom",
+                },
+                {
+                  value: "face",
+                  label: "Stays put",
+                  hint: "White at the bottom, Black at the top",
+                },
+              ]}
+              onChange={(v) => set("passView", v)}
+            />
+            {settings.passView === "face" && (
+              <Choice
+                legend="Pieces face"
+                note="Which way the pieces point while the board stays put."
+                name="pieceFacing"
+                value={settings.pieceFacing}
+                options={FACING_OPTIONS.map((o) => ({
+                  ...o,
+                  art: <FacingArt facing={o.value} />,
+                }))}
+                onChange={(v) => set("pieceFacing", v)}
+              />
+            )}
+          </>
         )}
 
         <Choice
@@ -168,5 +196,32 @@ export function Setup({ settings, onChange, onStart }: Props) {
         </button>
       </form>
     </main>
+  );
+}
+
+const FACING_OPTIONS: { value: PieceFacing; label: string; hint: string }[] = [
+  { value: "owner", label: "Their player", hint: "Yours face you, theirs face them" },
+  { value: "turn", label: "Whose turn", hint: "Every piece turns to the player moving" },
+  { value: "one-way", label: "One way", hint: "All upright for the White side" },
+  { value: "sideways", label: "Sideways", hint: "A quarter turn, readable from both sides" },
+];
+
+/**
+ * A tiny picture of each facing: a Black knight at the top edge and a White knight at the
+ * bottom, turned the way that option turns them. Decorative; the label says the same thing.
+ */
+function FacingArt({ facing }: { facing: PieceFacing }) {
+  const angle = (c: "w" | "b") =>
+    facing === "owner" ? (c === "b" ? 180 : 0) : facing === "sideways" ? 90 : 0;
+  return (
+    <span className={`facing-art facing-art--${facing}`} aria-hidden="true">
+      <span className="facing-art__piece" style={{ rotate: `${angle("b")}deg` }}>
+        <PieceIcon type="n" color="b" />
+      </span>
+      <span className="facing-art__piece" style={{ rotate: `${angle("w")}deg` }}>
+        <PieceIcon type="n" color="w" />
+      </span>
+      {facing === "turn" && <span className="facing-art__turn">↻</span>}
+    </span>
   );
 }

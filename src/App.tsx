@@ -36,6 +36,7 @@ import {
 import { Board } from "./ui/Board";
 import { PieceIcon } from "./ui/Pieces";
 import { Setup } from "./ui/Setup";
+import { track } from "./telemetry";
 import { GIF_PLIES } from "./ui/gifConstants";
 import { play as playSound, setSoundOn, unlockAudio } from "./ui/sound";
 
@@ -48,7 +49,12 @@ function loadSound(): boolean {
   }
 }
 
-const BOT_MIN_DELAY = 450;
+/**
+ * How long the bot seems to think: a random 1 to 3 seconds each move, counted from when it was
+ * asked, so its real thinking time (up to ~2.5 s on Expert) is part of the wait, not added on.
+ */
+const BOT_DELAY_MS: [number, number] = [1000, 3000];
+const botDelay = () => BOT_DELAY_MS[0] + Math.random() * (BOT_DELAY_MS[1] - BOT_DELAY_MS[0]);
 
 function newSession(settings: Settings): Session {
   const human: Color =
@@ -78,6 +84,18 @@ function material(game: Game) {
     order.flatMap((t) => Array<PieceType>(Math.max(0, start[t] - left[c][t])).fill(t));
   const score = (c: Color) => order.reduce((s, t) => s + worth[t] * left[c][t], 0);
   return { lost, lead: score("w") - score("b") };
+}
+
+/** The options a game was started with, flattened for usage counts. */
+function settingProps(s: Settings) {
+  return {
+    mode: s.mode,
+    level: s.mode === "bot" ? s.level : null,
+    side: s.mode === "bot" ? s.side : null,
+    clock: s.clock ?? "none",
+    passView: s.mode === "pass" ? s.passView : null,
+    pieceFacing: s.mode === "pass" && s.passView === "face" ? s.pieceFacing : null,
+  };
 }
 
 /** The back link goes to the Lab page (relative when served from jayfox.design/lab/). */
@@ -138,6 +156,7 @@ export function App() {
       // no storage: the choice lasts for this visit
     }
     if (next) playSound("move");
+    track("action", { name: next ? "sound_on" : "sound_off" });
   };
 
   // A sound for each new move, picked from what it did.
@@ -159,6 +178,25 @@ export function App() {
     const winner = "winner" in outcome ? outcome.winner : null;
     playSound(!winner ? "end-draw" : mode === "bot" && winner !== human ? "end-lose" : "end-win");
   }, [over, outcome, mode, human]);
+
+  // Count each finished game once (not again when a finished game is reloaded).
+  const countedEnd = useRef(over);
+  useEffect(() => {
+    if (!over) {
+      countedEnd.current = false;
+      return;
+    }
+    if (countedEnd.current || !session) return;
+    countedEnd.current = true;
+    const winner = "winner" in outcome ? outcome.winner : null;
+    track("game_end", {
+      ...settingProps(session.settings),
+      how: outcome.kind,
+      result: !winner ? "draw" : mode === "bot" ? (winner === human ? "win" : "loss") : winner,
+      plies: session.moves.length,
+      minutes: Math.round((Date.now() - session.startedAt) / 60_000),
+    });
+  }, [over]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Announcements for screen readers ----
   const announceMove = useCallback((g: Game, who: string) => {
@@ -235,11 +273,14 @@ export function App() {
     const moves = session.moves;
     const level = session.settings.level;
     const asked = performance.now();
+    // On the clock the wait is the bot's own time, so it never spends more than 5% of what's left.
+    const left = session.clock ? timeLeft(session.clock, game.turn(), asked) : Infinity;
+    const target = Math.min(botDelay(), Math.max(300, left * 0.05));
     setThinking(true);
     let timer = 0;
     const deliver = (uci: string | null) => {
       if (id !== requestRef.current || !uci) return;
-      const wait = Math.max(0, BOT_MIN_DELAY - (performance.now() - asked));
+      const wait = Math.max(0, target - (performance.now() - asked));
       timer = window.setTimeout(() => {
         if (id !== requestRef.current) return;
         setThinking(false);
@@ -323,6 +364,7 @@ export function App() {
 
   const pauseGame = () => {
     if (!session?.clock?.running) return;
+    track("action", { name: "pause", clock: session.settings.clock });
     setSession({ ...session, clock: pause(session.clock, performance.now()) });
     setPaused(true);
   };
@@ -354,7 +396,10 @@ export function App() {
   }, [over]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Game actions ----
-  const startGame = (s: Settings) => {
+  const startGame = (s: Settings, from: "menu" | "play-again" = "menu") => {
+    if (session && !over && session.moves.length > 0)
+      track("game_left", { ...settingProps(session.settings), plies: session.moves.length });
+    track("game_start", { ...settingProps(s), from });
     setSettings(s);
     setSession(newSession(s));
     setPaused(false);
@@ -365,6 +410,14 @@ export function App() {
     setAnnouncement(
       s.mode === "bot" ? "New game against the bot." : "New pass and play game. White to move.",
     );
+  };
+
+  /** Back to the match menu; a game still in progress counts as left. */
+  const toMenu = (via: "top-bar" | "end") => {
+    if (session && !over && session.moves.length > 0)
+      track("game_left", { ...settingProps(session.settings), plies: session.moves.length });
+    else if (over) track("action", { name: "main_menu", via });
+    setSession(null);
   };
 
   const canUndo =
@@ -381,12 +434,14 @@ export function App() {
     const count = game.turn() === human ? 2 : 1;
     setSession({ ...session, moves: game.undo(count).moves });
     setAnnouncement("Move taken back.");
+    track("action", { name: "undo", level: session.settings.level });
   };
 
   const resign = () => {
     if (!session) return;
     const loser = mode === "bot" ? human : game.turn();
     const ending: Outcome = { kind: "resigned", winner: other(loser) };
+    track("action", { name: "resign", mode, plies: session.moves.length });
     setSession({
       ...session,
       ending,
@@ -396,9 +451,16 @@ export function App() {
     setAnnouncement(`${describeOutcome(ending).title}. ${describeOutcome(ending).detail}`);
   };
 
+  /** The piece facing in a still-board pass and play game, else null (for usage counts). */
+  const faceToFaceFacing = () =>
+    session?.settings.mode === "pass" && session.settings.passView === "face"
+      ? session.settings.pieceFacing
+      : null;
+
   const agreeDraw = () => {
     if (!session) return;
     const ending: Outcome = { kind: "agreed" };
+    track("action", { name: "draw_accept", pieceFacing: faceToFaceFacing() });
     setSession({
       ...session,
       ending,
@@ -406,6 +468,17 @@ export function App() {
     });
     setConfirm(null);
     setAnnouncement("Draw agreed.");
+  };
+
+  const declineDraw = () => {
+    track("action", { name: "draw_decline", pieceFacing: faceToFaceFacing() });
+    setConfirm(null);
+    setAnnouncement(`Draw declined. ${COLOR_NAMES[game.turn()]} to move.`);
+  };
+  const withdrawDraw = () => {
+    track("action", { name: "draw_withdraw" });
+    setConfirm(null);
+    setAnnouncement("Draw offer taken back.");
   };
 
   const copyPgn = async () => {
@@ -431,6 +504,7 @@ export function App() {
       await navigator.clipboard.writeText(pgn);
       setCopied(true);
       setAnnouncement("Game copied as PGN.");
+      track("action", { name: "copy_pgn" });
     } catch {
       setCopied(false);
       window.prompt("Copy the game (PGN):", pgn);
@@ -457,10 +531,13 @@ export function App() {
         tone,
       });
       const name = `quick-chess-${script.banner.toLowerCase().replace(/\s+/g, "-")}.gif`;
-      setGifState(await shareOrDownload(bytes, name));
+      const delivered = await shareOrDownload(bytes, name);
+      setGifState(delivered);
+      track("action", { name: "share_gif", how: delivered });
       setAnnouncement("Game GIF ready.");
     } catch {
       setGifState("failed");
+      track("action", { name: "share_gif", how: "failed" });
     }
   };
 
@@ -515,13 +592,18 @@ export function App() {
         : `${COLOR_NAMES[game.turn()]} to move${game.inCheck() ? ": check!" : ""}`;
 
   const faceToFace = mode === "pass" && passView === "face";
+  const facing = session.settings.pieceFacing;
+  const pieceAngles = faceToFace ? facingAngles(facing, game.turn()) : undefined;
+  // In pass and play, a draw offer is answered by the other player, on their side of the board.
+  const responder = other(game.turn());
+  const responderAtTop = faceToFace && responder === top;
 
   return (
     <Shell
       sound={sound}
       onSound={toggleSound}
       actions={
-        <button type="button" className="button" onClick={() => setSession(null)}>
+        <button type="button" className="button" onClick={() => toMenu("top-bar")}>
           New game
         </button>
       }
@@ -545,11 +627,46 @@ export function App() {
               orientation={orientation}
               movable={movable}
               onMove={onBoardMove}
-              upsideDown={faceToFace ? "b" : null}
+              pieceAngles={pieceAngles}
+              turning={faceToFace && facing === "turn"}
               mated={mated}
               mateTone={endTone === "win" ? "win" : "lose"}
               drawn={over && endTone === "draw"}
             />
+            {confirm === "draw" && mode === "pass" && !over && (
+              <div
+                className={`draw-offer ${faceToFace ? (responderAtTop ? "draw-offer--top" : "draw-offer--bottom") : "draw-offer--center"}`}
+              >
+                <div
+                  className="card draw-offer__card"
+                  role="dialog"
+                  aria-labelledby="draw-offer-title"
+                  aria-describedby="draw-offer-text"
+                >
+                  <h2 id="draw-offer-title" className="card__title">
+                    {COLOR_NAMES[responder]}: draw?
+                  </h2>
+                  <p id="draw-offer-text" className="card__text">
+                    {faceToFace
+                      ? `${COLOR_NAMES[game.turn()]} offers a draw. Do you accept?`
+                      : `${COLOR_NAMES[game.turn()]} offers a draw. Hand the device to ${COLOR_NAMES[responder]} to answer.`}
+                  </p>
+                  <div className="draw-offer__actions">
+                    <button
+                      type="button"
+                      className="button button--primary"
+                      onClick={agreeDraw}
+                      autoFocus
+                    >
+                      Accept draw
+                    </button>
+                    <button type="button" className="button" onClick={declineDraw}>
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {pendingPromotion && (
               <Promotion
                 color={game.turn()}
@@ -592,7 +709,10 @@ export function App() {
                 <button
                   type="button"
                   className="result-hud__close"
-                  onClick={() => setShowResult(false)}
+                  onClick={() => {
+                    track("action", { name: "hide_result" });
+                    setShowResult(false);
+                  }}
                   aria-label="Hide result"
                 >
                   ×
@@ -627,21 +747,13 @@ export function App() {
               </button>
             </div>
           ) : confirm === "draw" ? (
-            <div className="confirm" role="group" aria-label="Draw offer">
+            <div className="confirm" role="group" aria-label="Draw offered">
               <p>
-                {COLOR_NAMES[game.turn()]} offers a draw. {COLOR_NAMES[other(game.turn())]}, do you
-                accept?
+                Draw offered. Waiting for {COLOR_NAMES[responder]} to answer on the board
+                {faceToFace ? `, on ${COLOR_NAMES[responder]}'s side` : ""}.
               </p>
-              <button
-                type="button"
-                className="button button--primary"
-                onClick={agreeDraw}
-                autoFocus
-              >
-                Accept draw
-              </button>
-              <button type="button" className="button" onClick={() => setConfirm(null)}>
-                Decline
+              <button type="button" className="button" onClick={withdrawDraw}>
+                Take back offer
               </button>
             </div>
           ) : over ? (
@@ -650,11 +762,11 @@ export function App() {
                 <button
                   type="button"
                   className="button button--primary"
-                  onClick={() => startGame(session.settings)}
+                  onClick={() => startGame(session.settings, "play-again")}
                 >
                   Play again
                 </button>
-                <button type="button" className="button" onClick={() => setSession(null)}>
+                <button type="button" className="button" onClick={() => toMenu("end")}>
                   Main menu
                 </button>
               </div>
@@ -708,7 +820,10 @@ export function App() {
                 <button
                   type="button"
                   className="button"
-                  onClick={() => setConfirm("draw")}
+                  onClick={() => {
+                    track("action", { name: "draw_offer", pieceFacing: faceToFaceFacing() });
+                    setConfirm("draw");
+                  }}
                   disabled={over}
                 >
                   Offer draw
@@ -762,6 +877,25 @@ function useFlipOrientation(
     return () => window.clearTimeout(t);
   }, [target, shown, mode]);
   return mode === "pass" && view === "flip" && !over ? shown : target;
+}
+
+/**
+ * How far each side's pieces turn when the board stays put (degrees). Black sits at the top,
+ * so 180 faces them; 90 is the quarter turn both players can read from their side.
+ */
+function facingAngles(facing: Settings["pieceFacing"], turn: Color): Record<Color, number> {
+  switch (facing) {
+    case "owner":
+      return { w: 0, b: 180 };
+    case "turn": {
+      const a = turn === "w" ? 0 : 180;
+      return { w: a, b: a };
+    }
+    case "sideways":
+      return { w: 90, b: 90 };
+    case "one-way":
+      return { w: 0, b: 0 };
+  }
 }
 
 /** The heading on the result card for each kind of draw (the banner already says DRAW). */

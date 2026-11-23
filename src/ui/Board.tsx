@@ -10,7 +10,7 @@ import {
   type Square,
 } from "../engine/game";
 import { PieceIcon } from "./Pieces";
-import { playIfOn } from "./sound";
+import { playIfOn, setStaticBedLevel, startStaticBed, stopStaticBed } from "./sound";
 
 interface Props {
   game: Game;
@@ -21,8 +21,10 @@ interface Props {
   onMove: (from: Square, to: Square) => void;
   /** Show the coordinates a–h / 1–8 along the edges. */
   coordinates?: boolean;
-  /** Pieces of this color are drawn upside down (face-to-face play). */
-  upsideDown?: Color | null;
+  /** How far each side's pieces are turned, in degrees (pass and play with the board still). */
+  pieceAngles?: Record<Color, number>;
+  /** Animate the pieces turning (when they follow whoever's move it is). */
+  turning?: boolean;
   /** Checkmate: the losing king topples and that side's pieces flicker out. */
   mated?: Color | null;
   /** Checkmate colors: acid green when you won, red when you lost. */
@@ -59,7 +61,8 @@ export function Board({
   movable,
   onMove,
   coordinates = true,
-  upsideDown,
+  pieceAngles,
+  turning = false,
   mated = null,
   mateTone = "lose",
   drawn = false,
@@ -222,7 +225,15 @@ export function Board({
     <div className="board-frame">
       <div
         ref={boardRef}
-        className={`board ${drag?.moved ? "board--dragging" : ""} ${mateTone === "win" ? "board--win" : ""} ${drawn ? "board--draw" : ""}`}
+        className={`board ${drag?.moved ? "board--dragging" : ""} ${mateTone === "win" ? "board--win" : ""} ${drawn ? "board--draw" : ""} ${turning ? "board--turning" : ""}`}
+        style={
+          pieceAngles
+            ? ({
+                "--turn-w": `${pieceAngles.w}deg`,
+                "--turn-b": `${pieceAngles.b}deg`,
+              } as React.CSSProperties)
+            : undefined
+        }
         role="grid"
         aria-label={`Chess board, ${COLOR_NAMES[orientation]} at the bottom. Arrow keys move between squares; Enter picks up and puts down a piece.`}
         onPointerMove={onPointerMove}
@@ -313,11 +324,7 @@ export function Board({
                         .join(" ")}
                       style={slide ? slideOffset(slide.from, slide.to, orientation) : undefined}
                     >
-                      <PieceIcon
-                        type={piece.type}
-                        color={piece.color}
-                        className={`piece ${upsideDown === piece.color ? "piece--flipped" : ""}`}
-                      />
+                      <PieceIcon type={piece.type} color={piece.color} className="piece" />
                     </span>
                   ) : null}
                 </button>
@@ -456,6 +463,9 @@ function KingFall({ color, tone }: { color: Color; tone: "win" | "lose" }) {
       // Some tears make a sound; it fades out over about 45 seconds of looking at the board.
       const age = (performance.now() - started) / 1000;
       if (age < 45 && Math.random() < 0.3) playIfOn("crackle", 1 - age / 45);
+      // The steady static under the bursts fades on the same curve, then stops.
+      if (age < 45) setStaticBedLevel(1 - age / 45);
+      else stopStaticBed();
       const top = Math.round(rand(0, 60));
       // The glow tears on its own slice (not the king's), or sometimes just jumps sideways.
       const glowTop = Math.random() < 0.3 ? 0 : Math.round(rand(0, 55));
@@ -497,7 +507,13 @@ function KingFall({ color, tone }: { color: Color; tone: "win" | "lose" }) {
       );
     };
     timer = window.setTimeout(burst, 1000);
-    return () => window.clearTimeout(timer);
+    // A steady hiss starts as the king tears apart, so the bursts have something under them.
+    const bedTimer = window.setTimeout(startStaticBed, 250);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(bedTimer);
+      stopStaticBed();
+    };
   }, []);
   const style = crackle
     ? ({

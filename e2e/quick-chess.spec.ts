@@ -22,6 +22,7 @@ async function seed(page: Page, settings: object, moves: string[]) {
             side: "w",
             clock: null,
             passView: "face",
+            pieceFacing: "owner",
             ...settings,
           },
           human: "w",
@@ -200,4 +201,63 @@ test("Share GIF makes an animated replay of the finished game", async ({ page, i
   expect(buffer.subarray(0, 6).toString("ascii")).toBe("GIF89a");
   expect(buffer.length).toBeGreaterThan(50_000);
   await expect(page.getByRole("button", { name: "GIF saved ✓" })).toBeVisible();
+});
+
+/** The rotation the board applies to one side's pieces, in degrees. */
+async function angle(page: Page, color: "w" | "b") {
+  return page
+    .locator(`.board .piece-svg--${color}`)
+    .first()
+    .evaluate((el) => getComputedStyle(el).rotate);
+}
+
+test("pieces face options: their player, whose turn, one way, sideways", async ({ page }) => {
+  await page.getByRole("radio", { name: /Pass & play/ }).check();
+  // The facing choice only appears when the board stays put.
+  await expect(page.getByRole("radio", { name: /Sideways/ })).toHaveCount(0);
+  await page.getByRole("radio", { name: /Stays put/ }).check();
+  await expect(page.getByRole("radio", { name: /Their player/ })).toBeChecked();
+
+  await page.getByRole("button", { name: /Start game/ }).click();
+  expect(await angle(page, "b")).toBe("180deg");
+  expect(["none", "0deg"]).toContain(await angle(page, "w"));
+
+  for (const [option, w, b] of [
+    ["Sideways", "90deg", "90deg"],
+    ["One way", "0deg", "0deg"],
+  ] as const) {
+    await page.getByRole("button", { name: "New game" }).click();
+    await page.getByRole("radio", { name: new RegExp(option) }).check();
+    await page.getByRole("button", { name: /Start game/ }).click();
+    expect(["none", w]).toContain(await angle(page, "w"));
+    expect(["none", b]).toContain(await angle(page, "b"));
+  }
+
+  // Whose turn: everything turns toward Black after White moves.
+  await page.getByRole("button", { name: "New game" }).click();
+  await page.getByRole("radio", { name: /Whose turn/ }).check();
+  await page.getByRole("button", { name: /Start game/ }).click();
+  await move(page, "e2", "e4");
+  await expect.poll(() => angle(page, "w")).toBe("180deg");
+  await expect.poll(() => angle(page, "b")).toBe("180deg");
+});
+
+test("a draw offer shows on the answering player's side, turned to face them", async ({ page }) => {
+  await page.getByRole("radio", { name: /Pass & play/ }).check();
+  await page.getByRole("radio", { name: /Stays put/ }).check();
+  await page.getByRole("button", { name: /Start game/ }).click();
+  // White offers: Black (at the top) answers, so the prompt is at the top, upside down.
+  await page.getByRole("button", { name: "Offer draw" }).click();
+  const offer = page.locator(".draw-offer");
+  await expect(offer).toHaveClass(/draw-offer--top/);
+  await expect(page.getByRole("dialog", { name: "Black: draw?" })).toBeVisible();
+  await page.getByRole("button", { name: "Decline" }).click();
+  await expect(offer).toHaveCount(0);
+
+  // Black offers: White answers at the bottom, the right way up.
+  await move(page, "e2", "e4");
+  await page.getByRole("button", { name: "Offer draw" }).click();
+  await expect(offer).toHaveClass(/draw-offer--bottom/);
+  await page.getByRole("button", { name: "Accept draw" }).click();
+  await expect(page.getByRole("heading", { name: "Draw agreed" })).toBeVisible();
 });

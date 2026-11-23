@@ -49,6 +49,42 @@ play timed chess.
   part of the game. You can hide it to study the final position.
 - A main-menu button is right there at the end of a match.
 
+**Pass and play: say plainly what the board does, and let players pick how pieces face**
+(Jay's call, 2026-11-23). "Turns each move" read as "sit across and the pieces turn to face
+you", which is what "Stays put" actually did. The board choice is now "Spins each move" (hand
+the device over) or "Stays put" (lay it flat, sit across), with a line explaining both. With
+the board still, a second choice sets which way the pieces point: toward their own player (the
+old behavior and the default), toward whoever's turn it is (they swing round after each move),
+all one way (upright for White's side), or sideways (a quarter turn, readable from both sides).
+Each option has a tiny picture, because the hints are hidden on phones (picture proposed,
+approved).
+
+**A draw offer is answered on the other player's side** (Jay's call). In pass and play the
+accept/decline prompt sits on the board at the edge of the player who must answer, turned to
+face them when they sit at the top. The offering player's panel says who it's waiting for and
+can take the offer back. With a spinning board it shows in the middle and says to hand the
+device over.
+
+**The bot takes a human-feeling beat** (Jay's call). Each reply lands at a random 1 to 3
+seconds instead of almost at once. Its real thinking time counts inside that wait, so Expert
+isn't slowed further. On the clock the wait comes out of the bot's own time, so it's capped at
+5% of what the bot has left (build default) and the pause can't lose it the game.
+
+**Static under the checkmate crackle** (Jay's call). The mated king's square now has a quiet,
+steady crushed-static hiss under the glitch bursts, so it isn't only isolated pops. It wobbles
+slowly like a weak signal, fades out with the bursts over about 45 seconds, follows the sound
+switch, and goes quiet when the tab is hidden. Like the rest of the sound, it's off unless
+sound is on, and with reduced motion (no crackle animation) there's no static either.
+
+**Usage counts** (Jay's call to add them; what's counted is a build default). To see which
+options people choose and what they do most: setup choices, games started (from the menu or
+"Play again") and their settings, how games end, games left unfinished, and uses of undo,
+draw offers, resign, pause, sound, Share GIF, Copy PGN and hiding the result. Sent with a random
+id per visit (nothing kept between visits) and a phone/desktop flag. Never moves, positions,
+names or a device fingerprint. Skipped when the browser sends Do Not Track or Global Privacy
+Control. Off until a destination is set with `VITE_TELEMETRY_URL` at build time; where the
+counts go is still to be decided.
+
 **Share a replay** (Jay's idea). A GIF of the last 10 moves, made in the browser, ending on the
 result word. Made on the device, so nothing is uploaded.
 

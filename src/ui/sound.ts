@@ -39,6 +39,8 @@ function audio(): AudioContext | null {
 let soundOn = false;
 export function setSoundOn(on: boolean) {
   soundOn = on;
+  if (on && bedWanted && !bed) startStaticBed();
+  updateBed();
 }
 
 /** Plays only if sound is on and the page is visible (for effects that run on their own). */
@@ -62,6 +64,84 @@ if (typeof document !== "undefined") {
     },
     { capture: true },
   );
+  document.addEventListener("visibilitychange", () => updateBed());
+}
+
+// ---- The static bed: a steady hiss under the checkmate crackle ----
+
+/** How loud the bed is at full strength (the crackle bursts sit on top of it). */
+const BED_VOLUME = 0.07;
+let bed: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
+/** 0..1, set by whoever is running the bed (it fades out with the crackle). */
+let bedLevel = 1;
+/** The bed was asked for while sound was off: start it if sound is turned on. */
+let bedWanted = false;
+
+function updateBed() {
+  if (!bed || !ctx) return;
+  const audible = soundOn && document.visibilityState === "visible";
+  const target = audible ? BED_VOLUME * bedLevel : 0;
+  bed.gain.gain.setTargetAtTime(target, ctx.currentTime, 0.15);
+}
+
+/**
+ * Starts a steady, quiet crushed-static loop (the same grain as the crackle) that runs until
+ * stopStaticBed. It follows the sound switch and goes quiet when the page is hidden.
+ */
+export function startStaticBed() {
+  bedWanted = true;
+  if (!soundOn) return;
+  const a = audio();
+  if (!a || !master || bed) return;
+  const seconds = 2;
+  const frames = a.sampleRate * seconds;
+  const buffer = a.createBuffer(1, frames, a.sampleRate);
+  const data = buffer.getChannelData(0);
+  let held = 0;
+  for (let i = 0; i < frames; i++) {
+    // Mostly fine-grained hiss, with the hold length wandering so it doesn't sound like a tone.
+    if (i % (4 + Math.floor(Math.random() * 6)) === 0) held = Math.random() * 2 - 1;
+    data[i] = held;
+  }
+  const source = a.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  const filter = a.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.frequency.value = 2600;
+  filter.Q.value = 0.5;
+  // A slow wobble in loudness, like a bad signal drifting in and out.
+  const wobble = a.createOscillator();
+  wobble.frequency.value = 0.37;
+  const wobbleDepth = a.createGain();
+  wobbleDepth.gain.value = 0.35;
+  const swell = a.createGain();
+  swell.gain.value = 1;
+  wobble.connect(wobbleDepth).connect(swell.gain);
+  const gain = a.createGain();
+  gain.gain.value = 0;
+  source.connect(filter).connect(swell).connect(gain).connect(master);
+  source.start();
+  wobble.start();
+  source.onended = () => wobble.stop();
+  bed = { source, gain };
+  updateBed();
+}
+
+/** 0..1: how strong the bed is now (the checkmate square fades it out over time). */
+export function setStaticBedLevel(level: number) {
+  bedLevel = Math.max(0, Math.min(1, level));
+  updateBed();
+}
+
+export function stopStaticBed() {
+  bedWanted = false;
+  bedLevel = 1;
+  if (!bed || !ctx) return;
+  const { source, gain } = bed;
+  bed = null;
+  gain.gain.setTargetAtTime(0, ctx.currentTime, 0.08);
+  source.stop(ctx.currentTime + 0.5);
 }
 
 function tone(

@@ -14,7 +14,16 @@ export interface Settings {
   clock: string | null;
   /** Pass and play: turn the board for whoever's move it is, or keep it still (face to face). */
   passView: "flip" | "face";
+  /**
+   * Pass and play with the board kept still: which way the pieces point. "owner": each side's
+   * pieces face its own player. "turn": every piece turns to face whoever is moving. "one-way":
+   * all upright for the White side. "sideways": all a quarter turn, so both sides read them.
+   */
+  pieceFacing: PieceFacing;
 }
+
+export type PieceFacing = "owner" | "turn" | "one-way" | "sideways";
+export const PIECE_FACINGS: PieceFacing[] = ["owner", "turn", "one-way", "sideways"];
 
 export const DEFAULT_SETTINGS: Settings = {
   mode: "bot",
@@ -22,6 +31,7 @@ export const DEFAULT_SETTINGS: Settings = {
   side: "w",
   clock: null,
   passView: "flip",
+  pieceFacing: "owner",
 };
 
 /** A game in progress or just finished. Everything needed to pick it back up after a reload. */
@@ -67,6 +77,9 @@ export function loadSettings(): Settings {
     side: isColor(s.side) || s.side === "random" ? s.side : "w",
     clock: typeof s.clock === "string" ? s.clock : null,
     passView: s.passView === "face" ? "face" : "flip",
+    pieceFacing: PIECE_FACINGS.includes(s.pieceFacing as PieceFacing)
+      ? (s.pieceFacing as PieceFacing)
+      : "owner",
   };
 }
 
