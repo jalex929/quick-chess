@@ -82,8 +82,23 @@ options people choose and what they do most: setup choices, games started (from 
 draw offers, resign, pause, sound, Share GIF, Copy PGN and hiding the result. Sent with a random
 id per visit (nothing kept between visits) and a phone/desktop flag. Never moves, positions,
 names or a device fingerprint. Skipped when the browser sends Do Not Track or Global Privacy
-Control. Off until a destination is set with `VITE_TELEMETRY_URL` at build time; where the
-counts go is still to be decided.
+Control.
+
+**Where the usage counts go** (Jay's call, 2026-11-23). To a new table in the UX Portfolio
+Supabase project, where the portfolio already lives, through a small public receiver
+(`supabase/`). No new account or service, and the counts are read with SQL in the Supabase
+dashboard. The trade-off: no ready-made charts, and the address is public, so anyone could pad
+the numbers. The receiver only stores small, well-formed events from a known app. Only the live
+site counts (Jay's call): the game sends nothing from local builds, previews or tests, and the
+receiver drops anything not sent from jayfox.design.
+
+**One shared table for every Lab project** (Jay's call). Jay wants counts from all the Lab
+projects, so the table is `lab_events` with an `app` column, rather than one table per game.
+Each project sends `app_open` once per page load, with a single word for where the visit came
+from (the Lab page, elsewhere on the site, another site, or direct), so the Lab can list its
+projects in order of interest (Jay's ask; the event and the word are build defaults). If Quick
+Chess moves to its own site, its rows and the receiver move with it (Jay's call); how to do
+that is in `supabase/README.md`.
 
 **Share a replay** (Jay's idea). A GIF of the last 10 moves, made in the browser, ending on the
 result word. Made on the device, so nothing is uploaded.

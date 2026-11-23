@@ -6,15 +6,20 @@
  * random id for this visit (a new one every tab, nothing stored between visits). Never moves,
  * positions, names, IP-derived data or a device fingerprint.
  *
- * Off unless VITE_TELEMETRY_URL is set at build time. Also off when the browser sends Do Not
- * Track or Global Privacy Control.
+ * Sent only from the live site (jayfox.design), to the Lab's shared receiver in the UX
+ * Portfolio Supabase project (supabase/README.md). Local builds, previews and tests send nothing,
+ * unless VITE_TELEMETRY_URL is set at build time, which overrides the address and sends from
+ * anywhere (the receiver still drops events that aren't from jayfox.design). Always off when the
+ * browser sends Do Not Track or Global Privacy Control.
  */
 
-export type EventName = "setup_change" | "game_start" | "game_end" | "game_left" | "action";
+export type EventName =
+  "app_open" | "setup_change" | "game_start" | "game_end" | "game_left" | "action";
 
 export type Props = Record<string, string | number | boolean | null>;
 
-const ENDPOINT: string | undefined = import.meta.env.VITE_TELEMETRY_URL;
+const LAB_RECEIVER = "https://ctjtaupulyxefuyeromj.supabase.co/functions/v1/lab-events";
+const OVERRIDE: string | undefined = import.meta.env.VITE_TELEMETRY_URL;
 const VERSION = 1;
 
 function optedOut(): boolean {
@@ -34,14 +39,37 @@ function visitId(): string {
   return visit;
 }
 
+const LIVE_HOST = /(^|\.)jayfox\.design$/;
+
 /** Real visitors on the live site, as opposed to local builds and previews. */
 function isLive(): boolean {
-  return typeof location !== "undefined" && /(^|\.)jayfox\.design$/.test(location.hostname);
+  return typeof location !== "undefined" && LIVE_HOST.test(location.hostname);
+}
+
+/** Where counts go from a page on this host, or nowhere. */
+export function endpointFor(hostname: string, override = OVERRIDE): string | undefined {
+  return override || (LIVE_HOST.test(hostname) ? LAB_RECEIVER : undefined);
+}
+
+/**
+ * Where this visit came from, coarsely: the Lab page, elsewhere on jayfox.design, another site, or
+ * nowhere (typed in, a bookmark, an app). Only this word is sent, never the address.
+ */
+export function arrivedFrom(): "lab" | "site" | "other" | "direct" {
+  if (typeof document === "undefined" || !document.referrer) return "direct";
+  try {
+    const ref = new URL(document.referrer);
+    if (!LIVE_HOST.test(ref.hostname)) return "other";
+    return /^\/lab\/?$/.test(ref.pathname) ? "lab" : "site";
+  } catch {
+    return "direct";
+  }
 }
 
 export function track(event: EventName, props: Props = {}) {
   if (import.meta.env.DEV) console.debug("[quick-chess telemetry]", event, props);
-  if (!ENDPOINT || optedOut()) return;
+  const endpoint = endpointFor(typeof location === "undefined" ? "" : location.hostname);
+  if (!endpoint || optedOut()) return;
   const body = JSON.stringify({
     app: "quick-chess",
     v: VERSION,
@@ -55,8 +83,8 @@ export function track(event: EventName, props: Props = {}) {
   try {
     // Plain text, so the beacon needs no CORS preflight; the receiver parses the JSON.
     const blob = new Blob([body], { type: "text/plain" });
-    if (navigator.sendBeacon?.(ENDPOINT, blob)) return;
-    void fetch(ENDPOINT, { method: "POST", body, keepalive: true, mode: "no-cors" });
+    if (navigator.sendBeacon?.(endpoint, blob)) return;
+    void fetch(endpoint, { method: "POST", body, keepalive: true, mode: "no-cors" });
   } catch {
     // Counting is best effort: never let it get in the way of the game.
   }
