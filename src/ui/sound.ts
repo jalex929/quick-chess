@@ -70,7 +70,7 @@ if (typeof document !== "undefined") {
 // ---- The static bed: a steady hiss under the checkmate crackle ----
 
 /** How loud the bed is at full strength (the crackle bursts sit on top of it). */
-const BED_VOLUME = 0.07;
+const BED_VOLUME = 0.05;
 let bed: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
 /** 0..1, set by whoever is running the bed (it fades out with the crackle). */
 let bedLevel = 1;
@@ -85,7 +85,7 @@ function updateBed() {
 }
 
 /**
- * Starts a steady, quiet crushed-static loop (the same grain as the crackle) that runs until
+ * Starts a steady, quiet, soft static loop (smooth pink noise, gentler than the crackle) that runs until
  * stopStaticBed. It follows the sound switch and goes quiet when the page is hidden.
  */
 export function startStaticBed() {
@@ -93,37 +93,48 @@ export function startStaticBed() {
   if (!soundOn) return;
   const a = audio();
   if (!a || !master || bed) return;
-  const seconds = 2;
+  const seconds = 4;
   const frames = a.sampleRate * seconds;
   const buffer = a.createBuffer(1, frames, a.sampleRate);
   const data = buffer.getChannelData(0);
-  let held = 0;
+  // Smooth pink noise (Paul Kellet's filter): a soft, even hiss with no crunchy steps in it.
+  let b0 = 0,
+    b1 = 0,
+    b2 = 0,
+    b3 = 0,
+    b4 = 0,
+    b5 = 0,
+    b6 = 0;
   for (let i = 0; i < frames; i++) {
-    // Mostly fine-grained hiss, with the hold length wandering so it doesn't sound like a tone.
-    if (i % (4 + Math.floor(Math.random() * 6)) === 0) held = Math.random() * 2 - 1;
-    data[i] = held;
+    const white = Math.random() * 2 - 1;
+    b0 = 0.99886 * b0 + white * 0.0555179;
+    b1 = 0.99332 * b1 + white * 0.0750759;
+    b2 = 0.969 * b2 + white * 0.153852;
+    b3 = 0.8665 * b3 + white * 0.3104856;
+    b4 = 0.55 * b4 + white * 0.5329522;
+    b5 = -0.7616 * b5 - white * 0.016898;
+    data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+    b6 = white * 0.115926;
+  }
+  // Fade the loop's ends into each other so the seam doesn't click.
+  const fade = Math.floor(a.sampleRate * 0.05);
+  for (let i = 0; i < fade; i++) {
+    const t = i / fade;
+    data[i] = data[i]! * t + data[frames - fade + i]! * (1 - t);
   }
   const source = a.createBufferSource();
   source.buffer = buffer;
   source.loop = true;
+  source.loopEnd = seconds - fade / a.sampleRate;
+  // Roll off the bright top end so it sits underneath as a soft wash, not a sharp hiss.
   const filter = a.createBiquadFilter();
-  filter.type = "bandpass";
-  filter.frequency.value = 2600;
-  filter.Q.value = 0.5;
-  // A slow wobble in loudness, like a bad signal drifting in and out.
-  const wobble = a.createOscillator();
-  wobble.frequency.value = 0.37;
-  const wobbleDepth = a.createGain();
-  wobbleDepth.gain.value = 0.35;
-  const swell = a.createGain();
-  swell.gain.value = 1;
-  wobble.connect(wobbleDepth).connect(swell.gain);
+  filter.type = "lowpass";
+  filter.frequency.value = 1500;
+  filter.Q.value = 0.3;
   const gain = a.createGain();
   gain.gain.value = 0;
-  source.connect(filter).connect(swell).connect(gain).connect(master);
+  source.connect(filter).connect(gain).connect(master);
   source.start();
-  wobble.start();
-  source.onended = () => wobble.stop();
   bed = { source, gain };
   updateBed();
 }

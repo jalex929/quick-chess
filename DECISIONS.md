@@ -75,6 +75,9 @@ steady crushed-static hiss under the glitch bursts, so it isn't only isolated po
 slowly like a weak signal, fades out with the bursts over about 45 seconds, follows the sound
 switch, and goes quiet when the tab is hidden. Like the rest of the sound, it's off unless
 sound is on, and with reduced motion (no crackle animation) there's no static either.
+Update 2026-11-23 (Jay's call): the hiss was too sharp, so it's now smooth pink noise through a
+low-pass filter, slightly quieter, with no wobble: a soft, constant wash. The crackle bursts
+on top keep their crunchy grain. Trade-off: less "bad signal" character, much easier to sit with.
 
 **Usage counts** (Jay's call to add them; what's counted is a build default). To see which
 options people choose and what they do most: setup choices, games started (from the menu or
