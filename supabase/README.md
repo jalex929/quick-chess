@@ -2,8 +2,8 @@
 
 Where the anonymous usage counts go (see `DECISIONS.md`, "Usage counts"). It lives in the UX
 Portfolio Supabase project, next to the portfolio, and is shared by every Lab project: one
-table, one receiver, and an `app` column saying which project sent each row. Quick Chess is the
-first project wired up, so the source lives here for now.
+table, one receiver, and an `app` column saying which project sent each row. Quick Chess was the
+first project wired up, so the source lives here for now. Contrast Lab sends too (2026-11-24).
 
 - `migrations/20261123000000_lab_events.sql`: the `public.lab_events` table. Row level security
   is on with no policies, so the public API can't read or write it.
@@ -49,6 +49,16 @@ group by 1, 2 order by 1 desc, 3 desc;
 select props->>'name' as action, count(*)
 from lab_events where app = 'quick-chess' and event = 'action'
 group by 1 order by 2 desc;
+
+-- Contrast Lab: which features get used
+select props->>'name' as feature, count(*), count(distinct visit) as visits
+from lab_events where app = 'contrast-lab' and event = 'action'
+group by 1 order by 2 desc;
+
+-- Contrast Lab: how pairs turn out (no colors are recorded, only pass/fail and a ratio band)
+select props->>'band' as band, props->>'aa_body' as passes_body_text, count(*)
+from lab_events where app = 'contrast-lab' and event = 'pair_checked'
+group by 1, 2 order by 1, 2;
 
 -- Quick Chess: setup choices
 select props->>'field' as field, props->>'value' as value, count(*)

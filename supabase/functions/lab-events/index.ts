@@ -1,11 +1,11 @@
-// Receives anonymous usage counts from the Lab projects (Quick Chess: src/telemetry.ts) and
-// stores them in public.lab_events. Public (no JWT): the apps send beacons with no headers, so
+// Receives anonymous usage counts from the Lab projects (Quick Chess and Contrast Lab, each in
+// its src/telemetry.ts) and stores them in public.lab_events. Public (no JWT): the apps send beacons with no headers, so
 // the function does its own checks and only accepts small, well-formed events sent from
 // jayfox.design by a known app. Deployed to the UX Portfolio Supabase project with JWT
 // verification off. See DECISIONS.md ("Usage counts") and supabase/README.md.
 
 /** Apps allowed to send, with the payload version each one speaks. Add a Lab project here. */
-const APPS: Record<string, number> = { "quick-chess": 1 };
+const APPS: Record<string, number> = { "quick-chess": 1, "contrast-lab": 1 };
 
 const SCREENS = new Set(["narrow", "wide"]);
 const MAX_BODY = 2048;
