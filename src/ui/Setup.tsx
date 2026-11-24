@@ -3,6 +3,7 @@ import { TIME_CONTROLS } from "../engine/clock";
 import type { PieceFacing, Settings } from "../engine/session";
 import { track } from "../telemetry";
 import { PieceIcon } from "./Pieces";
+import { playIfOn } from "./sound";
 
 interface Props {
   settings: Settings;
@@ -56,6 +57,7 @@ function Choice<T extends string | null>({
 export function Setup({ settings, onChange, onStart }: Props) {
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     track("setup_change", { field: key, value: value as string | null });
+    playIfOn("select");
     onChange({ ...settings, [key]: value });
   };
 

@@ -79,6 +79,10 @@ Update 2026-11-23 (Jay's call): the hiss was too sharp, so it's now smooth pink 
 low-pass filter, slightly quieter, with no wobble: a soft, constant wash. The crackle bursts
 on top keep their crunchy grain. Trade-off: less "bad signal" character, much easier to sit with.
 
+**Click on home-screen choices** (Jay's call). With sound on, picking any setting on the home
+screen (opponent, level, side, board, facing, clock) plays the short soft "select" blip. Only
+when sound is on and the tab is visible, like every other sound.
+
 **Usage counts** (Jay's call to add them; what's counted is a build default). To see which
 options people choose and what they do most: setup choices, games started (from the menu or
 "Play again") and their settings, how games end, games left unfinished, and uses of undo,
@@ -174,3 +178,8 @@ redirects there (Jay's request).
 - Tested in headless Chromium (desktop, and emulated Pixel 7, iPhone 13 and iPhone SE).
   **Not yet tested** in Safari or Firefox, on real phones, or with a screen reader by hand.
 - Expert's depth depends on the device's speed, since it stops when its time is up.
+
+**Phone menu: pieces back, slimmer cards** (Jay's call). The three neon pieces were hidden on
+phones; they now sit small (38px) to the right of the headline. The menu was also a bit large,
+so cards, labels, gaps and the Start button are trimmed on phones (about 15% shorter overall).
+Tap targets stay at least 40px tall.
